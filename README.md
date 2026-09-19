@@ -7,9 +7,9 @@ Disaster Response Coordination Platform
 - Database: MongoDB (Mongoose)
 
 ## Team
-- KARTIK BHARDWAJ
-- KRISHNA MEHTA
-- Manju
+- KARTIK BHARDWAJ (https://github.com/kartikbhardwajdev-27)
+- KRISHNA MEHTA (https://github.com/krishna-dev2008)
+- Manju (https://github.com/Manju-Sindhu)
 
 ## Setup
 (instructions coming soon)
