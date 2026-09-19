@@ -10,6 +10,7 @@ Disaster Response Coordination Platform
 - KARTIK BHARDWAJ (https://github.com/kartikbhardwajdev-27)
 - KRISHNA MEHTA (https://github.com/krishna-dev2008)
 - Manju (https://github.com/Manju-Sindhu)
+- Aditya Raj (https://github.com/snippetad)
 
 ## Setup
 (instructions coming soon)
