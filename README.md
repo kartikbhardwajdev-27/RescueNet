@@ -9,6 +9,7 @@ Disaster Response Coordination Platform
 ## Team
 - KARTIK BHARDWAJ
 - KRISHNA MEHTA
+- Manju
 
 ## Setup
 (instructions coming soon)
