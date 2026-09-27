@@ -1,0 +1,1171 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>RescueNet - Emergency Response</title>
+
+    <link rel="stylesheet" href="style.css">
+
+    <!-- Icons -->
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+</head>
+
+<body>
+
+    <!-- ========================================
+         TOAST
+    ======================================== -->
+
+    <div id="toast"></div>
+
+
+    <!-- ========================================
+         APP
+    ======================================== -->
+
+    <div class="app">
+
+
+        <!-- ========================================
+             SIDEBAR
+        ======================================== -->
+
+        <aside class="sidebar">
+
+            <div class="logo">
+
+                <div class="logo-icon">
+                    <i class="fa-solid fa-plus"></i>
+                </div>
+
+                <div>
+                    <h2>Rescue<span>Net</span></h2>
+                    <p>Safer People. Stronger Communities.</p>
+                </div>
+
+            </div>
+
+
+            <nav>
+
+                <button class="nav-item active" data-page="home">
+                    <i class="fa-solid fa-house"></i>
+                    <span>Home</span>
+                </button>
+
+                <button class="nav-item" data-page="map">
+                    <i class="fa-solid fa-map"></i>
+                    <span>Map</span>
+                </button>
+
+                <button class="nav-item" data-page="report">
+                    <i class="fa-solid fa-file-circle-plus"></i>
+                    <span>Report Incident</span>
+                </button>
+
+                <button class="nav-item" data-page="shelters">
+                    <i class="fa-solid fa-house-medical"></i>
+                    <span>Shelters</span>
+                </button>
+
+                <button class="nav-item" data-page="resources">
+                    <i class="fa-solid fa-book-open"></i>
+                    <span>Resources</span>
+                </button>
+
+                <button class="nav-item" data-page="about">
+                    <i class="fa-solid fa-circle-info"></i>
+                    <span>About</span>
+                </button>
+
+            </nav>
+
+
+            <button class="sidebar-sos" onclick="sendSOS()">
+
+                <i class="fa-solid fa-phone"></i>
+
+                <div>
+                    <strong>SOS</strong>
+                    <small>Emergency</small>
+                </div>
+
+            </button>
+
+        </aside>
+
+
+
+        <!-- ========================================
+             MAIN AREA
+        ======================================== -->
+
+        <main class="main">
+
+
+            <!-- TOP HEADER -->
+
+            <header class="topbar">
+
+                <div class="mobile-logo">
+                    <div class="logo-icon">
+                        <i class="fa-solid fa-plus"></i>
+                    </div>
+
+                    <strong>Rescue<span>Net</span></strong>
+                </div>
+
+
+                <div class="top-actions">
+
+                    <button class="notification">
+                        <i class="fa-regular fa-bell"></i>
+                        <span></span>
+                    </button>
+
+                    <div class="user">
+
+                        <div class="avatar">
+                            <i class="fa-solid fa-user"></i>
+                        </div>
+
+                        <div class="user-info">
+                            <strong>Hi, Citizen</strong>
+                            <small>Welcome back</small>
+                        </div>
+
+                        <i class="fa-solid fa-chevron-down"></i>
+
+                    </div>
+
+                </div>
+
+            </header>
+
+
+
+            <!-- ========================================
+                 PAGE CONTAINER
+            ======================================== -->
+
+            <div class="page-container">
+
+
+                <!-- ====================================
+                     HOME
+                ==================================== -->
+
+                <section class="page active-page" id="home">
+
+
+                    <div class="hero">
+
+                        <div class="hero-content">
+
+                            <p class="small-title">
+                                EMERGENCY RESPONSE PLATFORM
+                            </p>
+
+                            <h1>
+                                Help When
+                                <span>It Matters Most</span>
+                            </h1>
+
+                            <p class="hero-description">
+
+                                RescueNet connects people in emergency
+                                situations with responders, providing tools
+                                for reporting, shelter, evacuation, and
+                                rescue coordination.
+
+                            </p>
+
+
+                            <div class="hero-buttons">
+
+                                <button class="sos-button"
+                                    onclick="sendSOS()">
+
+                                    <i class="fa-solid fa-phone"></i>
+
+                                    <div>
+                                        <strong>SOS</strong>
+                                        <small>
+                                            One-Tap Emergency Alert
+                                        </small>
+                                    </div>
+
+                                </button>
+
+
+                                <button class="map-button"
+                                    onclick="goToPage('map')">
+
+                                    <i class="fa-regular fa-map"></i>
+
+                                    <div>
+                                        <strong>View Live Map</strong>
+                                        <small>
+                                            See incidents near you
+                                        </small>
+                                    </div>
+
+                                </button>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="hero-image">
+
+                            <div class="hero-overlay"></div>
+
+                            <div class="hero-quote">
+                                Together<br>
+                                for a Safer<br>
+                                Tomorrow
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <!-- HOME CARDS -->
+
+                    <div class="quick-actions">
+
+
+                        <button class="quick-card"
+                            onclick="goToPage('report')">
+
+                            <div class="quick-icon blue">
+                                <i class="fa-solid fa-users"></i>
+                            </div>
+
+                            <h3>Report Incidents</h3>
+
+                            <p>Quick and easy</p>
+
+                        </button>
+
+
+
+                        <button class="quick-card"
+                            onclick="goToPage('shelters')">
+
+                            <div class="quick-icon green">
+                                <i class="fa-solid fa-shield-heart"></i>
+                            </div>
+
+                            <h3>Find Shelters</h3>
+
+                            <p>Nearby safe locations</p>
+
+                        </button>
+
+
+
+                        <button class="quick-card"
+                            onclick="goToPage('map')">
+
+                            <div class="quick-icon orange">
+                                <i class="fa-solid fa-person-walking"></i>
+                            </div>
+
+                            <h3>Get Safe Routes</h3>
+
+                            <p>AI-powered guidance</p>
+
+                        </button>
+
+
+
+                        <button class="quick-card"
+                            onclick="goToPage('map')">
+
+                            <div class="quick-icon purple">
+                                <i class="fa-solid fa-people-group"></i>
+                            </div>
+
+                            <h3>Rescue Coordination</h3>
+
+                            <p>Connect with responders</p>
+
+                        </button>
+
+                    </div>
+
+
+
+                    <!-- HOME BOTTOM GRID -->
+
+                    <div class="home-grid">
+
+                        <div class="stats-card">
+
+                            <div class="stats-header">
+                                <h2>Live Disaster Status</h2>
+
+                                <button onclick="goToPage('map')">
+                                    View Map →
+                                </button>
+                            </div>
+
+                            <div class="mini-map">
+
+                                <div class="map-road road1"></div>
+                                <div class="map-road road2"></div>
+
+                                <div class="map-marker red-marker">
+                                    <i class="fa-solid fa-triangle-exclamation"></i>
+                                </div>
+
+                                <div class="map-marker green-marker">
+                                    <i class="fa-solid fa-house"></i>
+                                </div>
+
+                                <div class="map-marker orange-marker">
+                                    <i class="fa-solid fa-house"></i>
+                                </div>
+
+                                <div class="map-popup">
+                                    <strong>Flood</strong>
+                                    <small>Riverside Area</small>
+                                    <span>2 hours ago</span>
+                                </div>
+
+                            </div>
+
+
+                            <div class="stat-row">
+
+                                <div>
+                                    <strong>12</strong>
+                                    <span>Active Incidents</span>
+                                </div>
+
+                                <div>
+                                    <strong>5</strong>
+                                    <span>Rescue Teams</span>
+                                </div>
+
+                                <div>
+                                    <strong>8</strong>
+                                    <span>Shelters Open</span>
+                                </div>
+
+                                <div>
+                                    <strong>124</strong>
+                                    <span>People Helped</span>
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </section>
+
+
+
+                <!-- ====================================
+                     REPORT INCIDENT
+                ==================================== -->
+
+                <section class="page" id="report">
+
+                    <div class="page-title">
+
+                        <div>
+                            <p>EMERGENCY REPORTING</p>
+                            <h1>Report an Incident</h1>
+                            <span>
+                                Provide details to help us respond faster.
+                            </span>
+                        </div>
+
+                        <button class="page-sos"
+                            onclick="sendSOS()">
+                            <i class="fa-solid fa-phone"></i>
+                            SOS
+                        </button>
+
+                    </div>
+
+
+                    <div class="report-container">
+
+
+                        <div class="form-card">
+
+
+                            <div class="steps">
+
+                                <div class="step active">
+                                    <b>1</b>
+                                    <span>Details</span>
+                                </div>
+
+                                <div class="step">
+                                    <b>2</b>
+                                    <span>Location</span>
+                                </div>
+
+                                <div class="step">
+                                    <b>3</b>
+                                    <span>Confirm</span>
+                                </div>
+
+                            </div>
+
+
+
+                            <label>Type of Incident</label>
+
+                            <div class="incident-types">
+
+                                <button class="incident active"
+                                    data-type="Flood">
+
+                                    <i class="fa-solid fa-water"></i>
+                                    Flood
+
+                                </button>
+
+                                <button class="incident"
+                                    data-type="Fire">
+
+                                    <i class="fa-solid fa-fire"></i>
+                                    Fire
+
+                                </button>
+
+                                <button class="incident"
+                                    data-type="Earthquake">
+
+                                    <i class="fa-solid fa-house-crack"></i>
+                                    Earthquake
+
+                                </button>
+
+                                <button class="incident"
+                                    data-type="Medical">
+
+                                    <i class="fa-solid fa-kit-medical"></i>
+                                    Medical
+
+                                </button>
+
+                                <button class="incident"
+                                    data-type="Other">
+
+                                    <i class="fa-solid fa-ellipsis"></i>
+                                    Other
+
+                                </button>
+
+                            </div>
+
+
+
+                            <label for="description">
+                                Description
+                            </label>
+
+                            <textarea id="description"
+                                placeholder="Describe the situation..."></textarea>
+
+
+
+                            <label for="location">
+                                Incident Location
+                            </label>
+
+                            <div class="location-input">
+
+                                <input id="location"
+                                    type="text"
+                                    placeholder="Enter location">
+
+                                <button onclick="getLocation()">
+                                    <i class="fa-solid fa-location-crosshairs"></i>
+                                    Use My Location
+                                </button>
+
+                            </div>
+
+
+
+                            <label>Add Photos
+                                <small>(Optional)</small>
+                            </label>
+
+                            <label class="upload-box">
+
+                                <i class="fa-solid fa-camera"></i>
+
+                                <span id="uploadText">
+                                    Upload Images or Videos
+                                </span>
+
+                                <input
+                                    type="file"
+                                    id="fileInput"
+                                    multiple
+                                    accept="image/*,video/*">
+
+                            </label>
+
+
+
+                            <button id="submitReport"
+                                class="submit-button">
+
+                                Submit Incident Report
+                                <i class="fa-solid fa-arrow-right"></i>
+
+                            </button>
+
+                        </div>
+
+
+
+                        <div class="emergency-info">
+
+                            <div class="info-card red-info">
+
+                                <i class="fa-solid fa-triangle-exclamation"></i>
+
+                                <h3>Emergency?</h3>
+
+                                <p>
+                                    For immediate danger, use the SOS
+                                    button instead of submitting a report.
+                                </p>
+
+                                <button onclick="sendSOS()">
+                                    Send SOS
+                                </button>
+
+                            </div>
+
+
+                            <div class="info-card">
+
+                                <h3>Reporting Tips</h3>
+
+                                <ul>
+
+                                    <li>
+                                        <i class="fa-solid fa-check"></i>
+                                        Give an accurate location
+                                    </li>
+
+                                    <li>
+                                        <i class="fa-solid fa-check"></i>
+                                        Describe what happened
+                                    </li>
+
+                                    <li>
+                                        <i class="fa-solid fa-check"></i>
+                                        Add photos if safe
+                                    </li>
+
+                                    <li>
+                                        <i class="fa-solid fa-check"></i>
+                                        Do not put yourself at risk
+                                    </li>
+
+                                </ul>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </section>
+
+
+
+                <!-- ====================================
+                     MAP
+                ==================================== -->
+
+                <section class="page" id="map">
+
+                    <div class="page-title">
+
+                        <div>
+                            <p>REAL-TIME MONITORING</p>
+                            <h1>Live Disaster Map</h1>
+                            <span>
+                                Real-time incidents, shelters and rescue resources.
+                            </span>
+                        </div>
+
+                        <button class="page-sos"
+                            onclick="sendSOS()">
+                            <i class="fa-solid fa-phone"></i>
+                            SOS
+                        </button>
+
+                    </div>
+
+
+
+                    <div class="map-toolbar">
+
+                        <div class="search-map">
+
+                            <i class="fa-solid fa-magnifying-glass"></i>
+
+                            <input type="text"
+                                placeholder="Search locations...">
+
+                        </div>
+
+
+                        <div class="filters">
+
+                            <button class="filter active">
+                                All
+                            </button>
+
+                            <button class="filter">
+                                <i class="fa-solid fa-triangle-exclamation"></i>
+                                Incidents
+                            </button>
+
+                            <button class="filter">
+                                <i class="fa-solid fa-house"></i>
+                                Shelters
+                            </button>
+
+                            <button class="filter">
+                                <i class="fa-solid fa-users"></i>
+                                Rescue Teams
+                            </button>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <div class="large-map">
+
+                        <div class="map-grid"></div>
+
+                        <div class="river"></div>
+
+                        <div class="map-label label1">
+                            Riverside
+                        </div>
+
+                        <div class="map-label label2">
+                            Central City
+                        </div>
+
+                        <div class="map-label label3">
+                            Sunnyvale
+                        </div>
+
+
+                        <div class="large-marker marker-red"
+                            style="left:48%;top:30%">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                        </div>
+
+                        <div class="large-marker marker-red"
+                            style="left:60%;top:65%">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                        </div>
+
+                        <div class="large-marker marker-green"
+                            style="left:70%;top:40%">
+                            <i class="fa-solid fa-house"></i>
+                        </div>
+
+                        <div class="large-marker marker-green"
+                            style="left:28%;top:67%">
+                            <i class="fa-solid fa-house"></i>
+                        </div>
+
+                        <div class="large-marker marker-orange"
+                            style="left:20%;top:40%">
+                            <i class="fa-solid fa-users"></i>
+                        </div>
+
+
+                        <div class="map-event-popup">
+
+                            <div class="popup-icon">
+                                <i class="fa-solid fa-fire"></i>
+                            </div>
+
+                            <div>
+                                <strong>Fire Incident</strong>
+                                <small>Central City</small>
+                                <span>Reported 1 hour ago</span>
+                            </div>
+
+                        </div>
+
+
+                        <div class="map-controls">
+
+                            <button>+</button>
+                            <button>−</button>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <div class="map-legend">
+
+                        <span>
+                            <i class="legend red"></i>
+                            Incident
+                        </span>
+
+                        <span>
+                            <i class="legend green"></i>
+                            Shelter
+                        </span>
+
+                        <span>
+                            <i class="legend blue"></i>
+                            Rescue Team
+                        </span>
+
+                        <span>
+                            <i class="legend orange"></i>
+                            Evacuation Route
+                        </span>
+
+                    </div>
+
+                </section>
+
+
+
+                <!-- ====================================
+                     SHELTERS
+                ==================================== -->
+
+                <section class="page" id="shelters">
+
+                    <div class="page-title">
+
+                        <div>
+                            <p>SAFE LOCATIONS</p>
+                            <h1>Available Shelters</h1>
+                            <span>
+                                Find nearby safe locations for you and your family.
+                            </span>
+                        </div>
+
+                        <button class="page-sos"
+                            onclick="sendSOS()">
+                            <i class="fa-solid fa-phone"></i>
+                            SOS
+                        </button>
+
+                    </div>
+
+
+
+                    <div class="shelter-tools">
+
+                        <div class="shelter-search">
+
+                            <i class="fa-solid fa-magnifying-glass"></i>
+
+                            <input
+                                id="shelterSearch"
+                                type="text"
+                                placeholder="Search by city or area...">
+
+                        </div>
+
+
+                        <button onclick="getShelterLocation()"
+                            class="location-button">
+
+                            <i class="fa-solid fa-location-crosshairs"></i>
+
+                            Use My Location
+
+                        </button>
+
+                    </div>
+
+
+
+                    <div class="shelter-list">
+
+
+                        <div class="shelter-card">
+
+                            <div class="shelter-icon">
+                                <i class="fa-solid fa-house"></i>
+                            </div>
+
+                            <div class="shelter-info">
+
+                                <h3>Riverside Community Center</h3>
+
+                                <p>
+                                    123 River Road, Central City
+                                </p>
+
+                                <div class="shelter-meta">
+
+                                    <span>
+                                        <i class="fa-solid fa-location-dot"></i>
+                                        2.5 km
+                                    </span>
+
+                                    <span>
+                                        <i class="fa-solid fa-users"></i>
+                                        120 / 200
+                                    </span>
+
+                                </div>
+
+                            </div>
+
+                            <div class="shelter-status">
+
+                                <span class="open">
+                                    ● Open
+                                </span>
+
+                                <button>
+                                    Get Directions
+                                </button>
+
+                            </div>
+
+                        </div>
+
+
+
+                        <div class="shelter-card">
+
+                            <div class="shelter-icon">
+                                <i class="fa-solid fa-house"></i>
+                            </div>
+
+                            <div class="shelter-info">
+
+                                <h3>Maple High School</h3>
+
+                                <p>
+                                    456 Maple Street, Central City
+                                </p>
+
+                                <div class="shelter-meta">
+
+                                    <span>
+                                        <i class="fa-solid fa-location-dot"></i>
+                                        4.1 km
+                                    </span>
+
+                                    <span>
+                                        <i class="fa-solid fa-users"></i>
+                                        350 / 500
+                                    </span>
+
+                                </div>
+
+                            </div>
+
+                            <div class="shelter-status">
+
+                                <span class="open">
+                                    ● Open
+                                </span>
+
+                                <button>
+                                    Get Directions
+                                </button>
+
+                            </div>
+
+                        </div>
+
+
+
+                        <div class="shelter-card">
+
+                            <div class="shelter-icon">
+                                <i class="fa-solid fa-house"></i>
+                            </div>
+
+                            <div class="shelter-info">
+
+                                <h3>Greenwood Shelter</h3>
+
+                                <p>
+                                    789 Lake View Road, Greenwood
+                                </p>
+
+                                <div class="shelter-meta">
+
+                                    <span>
+                                        <i class="fa-solid fa-location-dot"></i>
+                                        6.3 km
+                                    </span>
+
+                                    <span>
+                                        <i class="fa-solid fa-users"></i>
+                                        80 / 150
+                                    </span>
+
+                                </div>
+
+                            </div>
+
+                            <div class="shelter-status">
+
+                                <span class="open">
+                                    ● Open
+                                </span>
+
+                                <button>
+                                    Get Directions
+                                </button>
+
+                            </div>
+
+                        </div>
+
+
+                    </div>
+
+                </section>
+
+
+
+                <!-- ====================================
+                     RESOURCES
+                ==================================== -->
+
+                <section class="page" id="resources">
+
+                    <div class="page-title">
+
+                        <div>
+                            <p>EMERGENCY KNOWLEDGE</p>
+                            <h1>Emergency Resources</h1>
+                            <span>
+                                Information to help you stay safe during emergencies.
+                            </span>
+                        </div>
+
+                    </div>
+
+
+
+                    <div class="resource-grid">
+
+                        <div class="resource-card">
+
+                            <div class="resource-icon red">
+                                <i class="fa-solid fa-house-fire"></i>
+                            </div>
+
+                            <h2>Fire Safety</h2>
+
+                            <p>
+                                Learn what to do before, during and after
+                                a fire emergency.
+                            </p>
+
+                            <button onclick="showToast('Fire safety guide opened.')">
+                                Read Guide →
+                            </button>
+
+                        </div>
+
+
+                        <div class="resource-card">
+
+                            <div class="resource-icon blue">
+                                <i class="fa-solid fa-house-crack"></i>
+                            </div>
+
+                            <h2>Earthquake Safety</h2>
+
+                            <p>
+                                Important safety steps for earthquake
+                                situations.
+                            </p>
+
+                            <button onclick="showToast('Earthquake safety guide opened.')">
+                                Read Guide →
+                            </button>
+
+                        </div>
+
+
+                        <div class="resource-card">
+
+                            <div class="resource-icon orange">
+                                <i class="fa-solid fa-water"></i>
+                            </div>
+
+                            <h2>Flood Safety</h2>
+
+                            <p>
+                                Stay safe and understand evacuation
+                                procedures during floods.
+                            </p>
+
+                            <button onclick="showToast('Flood safety guide opened.')">
+                                Read Guide →
+                            </button>
+
+                        </div>
+
+
+                        <div class="resource-card">
+
+                            <div class="resource-icon green">
+                                <i class="fa-solid fa-kit-medical"></i>
+                            </div>
+
+                            <h2>First Aid</h2>
+
+                            <p>
+                                Basic emergency first-aid information
+                                and preparation.
+                            </p>
+
+                            <button onclick="showToast('First aid guide opened.')">
+                                Read Guide →
+                            </button>
+
+                        </div>
+
+                    </div>
+
+                </section>
+
+
+
+                <!-- ====================================
+                     ABOUT
+                ==================================== -->
+
+                <section class="page" id="about">
+
+                    <div class="about-page">
+
+                        <div class="about-logo">
+
+                            <div class="logo-icon big">
+                                <i class="fa-solid fa-plus"></i>
+                            </div>
+
+                            <h1>
+                                Rescue<span>Net</span>
+                            </h1>
+
+                            <p>
+                                Safer People. Stronger Communities.
+                            </p>
+
+                        </div>
+
+
+                        <div class="about-content">
+
+                            <h2>About RescueNet</h2>
+
+                            <p>
+                                RescueNet is an emergency response platform
+                                designed to connect citizens, responders,
+                                shelters and emergency resources in one place.
+                            </p>
+
+                            <p>
+                                Citizens can report incidents, locate nearby
+                                shelters, view disaster information and
+                                communicate emergency needs quickly.
+                            </p>
+
+
+                            <div class="about-features">
+
+                                <div>
+                                    <i class="fa-solid fa-bolt"></i>
+                                    <strong>Fast Response</strong>
+                                    <span>Quick emergency reporting</span>
+                                </div>
+
+                                <div>
+                                    <i class="fa-solid fa-map-location-dot"></i>
+                                    <strong>Live Information</strong>
+                                    <span>Monitor incidents and shelters</span>
+                                </div>
+
+                                <div>
+                                    <i class="fa-solid fa-people-group"></i>
+                                    <strong>Community</strong>
+                                    <span>Connect citizens and responders</span>
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </section>
+
+
+            </div>
+
+
+            <!-- PAGE NAVIGATION -->
+
+            <div class="page-navigation">
+
+                <button id="previousPage">
+                    <i class="fa-solid fa-arrow-left"></i>
+                    Previous
+                </button>
+
+                <div id="pageDots"></div>
+
+                <button id="nextPage">
+                    Next
+                    <i class="fa-solid fa-arrow-right"></i>
+                </button>
+
+            </div>
+
+
+        </main>
+
+    </div>
+
+
+    <script src="script.js"></script>
+
+</body>
+
+</html>
