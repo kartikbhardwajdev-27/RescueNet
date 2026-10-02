@@ -60,6 +60,7 @@
                 <button class="nav-item" data-page="map" aria-label="View Live Map">
                     <i class="fa-solid fa-map"></i>
                     <span>Map</span>
+                    <span class="live-badge">LIVE</span>
                 </button>
 
                 <button class="nav-item" data-page="report" aria-label="Report Incident">
@@ -91,7 +92,7 @@
 
                 <div>
                     <strong>SOS</strong>
-                    <small>Emergency</small>
+                    <small>Tap for Help</small>
                 </div>
 
             </button>
@@ -162,6 +163,12 @@
                 <section class="page active-page" id="home">
 
 
+                    <div class="status-banner">
+                        <span class="status-dot"></span>
+                        <strong>ACTIVE EMERGENCY</strong> — 12 incidents reported in your area
+                    </div>
+
+
                     <div class="hero">
 
                         <div class="hero-content">
@@ -177,10 +184,8 @@
 
                             <p class="hero-description">
 
-                                RescueNet connects people in emergency
-                                situations with responders, providing tools
-                                for reporting, shelter, evacuation, and
-                                rescue coordination.
+                                Get real-time emergency alerts, find nearby
+                                shelters, and coordinate with responders.
 
                             </p>
 
@@ -193,7 +198,7 @@
                                     <i class="fa-solid fa-phone"></i>
 
                                     <div>
-                                        <strong>SOS</strong>
+                                        <strong>EMERGENCY SOS</strong>
                                         <small>
                                             One-Tap Emergency Alert
                                         </small>
@@ -346,26 +351,107 @@
 
                             <div class="stat-row">
 
-                                <div>
+                                <div class="stat-item">
+                                    <i class="fa-solid fa-triangle-exclamation stat-icon red"></i>
                                     <strong>12</strong>
                                     <span>Active Incidents</span>
+                                    <small>↑ 3 since 1h</small>
                                 </div>
 
-                                <div>
+                                <div class="stat-item">
+                                    <i class="fa-solid fa-life-ring stat-icon blue"></i>
                                     <strong>5</strong>
                                     <span>Rescue Teams</span>
+                                    <small>2 deployed nearby</small>
                                 </div>
 
-                                <div>
+                                <div class="stat-item">
+                                    <i class="fa-solid fa-house stat-icon green"></i>
                                     <strong>8</strong>
                                     <span>Shelters Open</span>
+                                    <small>3 within 5 km</small>
                                 </div>
 
-                                <div>
+                                <div class="stat-item">
+                                    <i class="fa-solid fa-users stat-icon orange"></i>
                                     <strong>124</strong>
                                     <span>People Helped</span>
+                                    <small>Today</small>
                                 </div>
 
+                            </div>
+
+                        </div>
+
+
+                        <div class="nearby-card">
+
+                            <h2>Nearby</h2>
+
+                            <div class="nearby-item">
+                                <i class="fa-solid fa-house nearby-icon green"></i>
+                                <div>
+                                    <strong>Shelter — Community Hall</strong>
+                                    <span>1.2 km away · 180 spaces available</span>
+                                </div>
+                                <button onclick="goToPage('shelters')">Directions</button>
+                            </div>
+
+                            <div class="nearby-item">
+                                <i class="fa-solid fa-truck-medical nearby-icon blue"></i>
+                                <div>
+                                    <strong>Rescue Team</strong>
+                                    <span>2.4 km away · Available</span>
+                                </div>
+                                <button onclick="goToPage('map')">Contact</button>
+                            </div>
+
+                            <div class="nearby-item">
+                                <i class="fa-solid fa-triangle-exclamation nearby-icon red"></i>
+                                <div>
+                                    <strong>Flood Incident</strong>
+                                    <span>3.1 km away · Reported 12 min ago</span>
+                                </div>
+                                <button onclick="goToPage('map')">View</button>
+                            </div>
+
+                        </div>
+
+
+                        <div class="activity-card">
+
+                            <h2>Recent Activity</h2>
+
+                            <div class="activity-item">
+                                <span class="activity-dot red"></span>
+                                <div>
+                                    <strong>18:31 — Flood reported</strong>
+                                    <span>Riverside Area</span>
+                                </div>
+                            </div>
+
+                            <div class="activity-item">
+                                <span class="activity-dot orange"></span>
+                                <div>
+                                    <strong>18:24 — Rescue team deployed</strong>
+                                    <span>Sector 17</span>
+                                </div>
+                            </div>
+
+                            <div class="activity-item">
+                                <span class="activity-dot green"></span>
+                                <div>
+                                    <strong>18:17 — Shelter opened</strong>
+                                    <span>Community Hall</span>
+                                </div>
+                            </div>
+
+                            <div class="activity-item">
+                                <span class="activity-dot blue"></span>
+                                <div>
+                                    <strong>18:05 — Road blockage reported</strong>
+                                    <span>Main Highway</span>
+                                </div>
                             </div>
 
                         </div>
@@ -1145,25 +1231,6 @@
 
                 </section>
 
-
-            </div>
-
-
-            <!-- PAGE NAVIGATION -->
-
-            <div class="page-navigation">
-
-                <button id="previousPage">
-                    <i class="fa-solid fa-arrow-left"></i>
-                    Previous
-                </button>
-
-                <div id="pageDots"></div>
-
-                <button id="nextPage">
-                    Next
-                    <i class="fa-solid fa-arrow-right"></i>
-                </button>
 
             </div>
 
