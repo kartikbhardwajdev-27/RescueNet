@@ -9,7 +9,7 @@
     --dark-red: #c91f2b;
     --navy: #14213d;
     --text: #26344d;
-    --muted: #78849a;
+    --muted: #5a6d84;
     --border: #e5e9f0;
     --bg: #f4f7fb;
     --white: #ffffff;
@@ -83,7 +83,7 @@ body {
 
 .logo p {
     color: #9ba8bd;
-    font-size: 8px;
+    font-size: 11px;
     margin-top: 3px;
 }
 
@@ -94,6 +94,7 @@ body {
 }
 
 .nav-item {
+    position: relative;
     width: 100%;
     border: 0;
     background: transparent;
@@ -123,6 +124,12 @@ body {
     color: white;
 }
 
+.nav-item:focus-visible {
+    outline: 2px solid rgba(255, 255, 255, 0.4);
+    outline-offset: -2px;
+    background: rgba(255,255,255,0.13);
+}
+
 .sidebar-sos {
     margin-top: auto;
     border: 0;
@@ -134,6 +141,14 @@ body {
     display: flex;
     align-items: center;
     gap: 13px;
+    transition: all 0.2s ease;
+}
+
+.sidebar-sos:hover,
+.sidebar-sos:focus-visible {
+    background: var(--dark-red);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(201, 31, 43, 0.3);
 }
 
 .sidebar-sos i {
@@ -261,9 +276,9 @@ body {
     transform: translateX(35px);
 
     transition:
-        opacity .3s ease,
-        transform .3s ease,
-        visibility .3s;
+        opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+        transform 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+        visibility 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .page.active-page {
@@ -287,8 +302,8 @@ body {
 }
 
 .hero-content {
-    width: 52%;
-    padding: 45px 35px;
+    width: min(52%, 400px);
+    padding: clamp(20px, 5vw, 45px);
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -297,7 +312,7 @@ body {
 
 .small-title,
 .page-title > div > p {
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 700;
     letter-spacing: 1.4px;
     color: var(--red);
@@ -306,8 +321,8 @@ body {
 
 .hero h1 {
     color: var(--navy);
-    font-size: clamp(35px, 4vw, 53px);
-    line-height: .98;
+    font-size: clamp(28px, 5vw, 53px);
+    line-height: 0.98;
     margin-bottom: 15px;
 }
 
@@ -319,7 +334,7 @@ body {
 .hero-description {
     max-width: 490px;
     color: #69768b;
-    font-size: 14px;
+    font-size: clamp(12px, 2.5vw, 15px);
     line-height: 1.6;
 }
 
@@ -327,6 +342,7 @@ body {
     display: flex;
     gap: 12px;
     margin-top: 25px;
+    flex-wrap: wrap;
 }
 
 .sos-button,
@@ -344,12 +360,34 @@ body {
     background: var(--red);
     border: 1px solid var(--red);
     color: white;
+    transition: all 0.2s ease;
+}
+
+.sos-button:hover,
+.sos-button:focus-visible {
+    background: var(--dark-red);
+    border-color: var(--dark-red);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(201, 31, 43, 0.3);
+}
+
+.sos-button:active {
+    transform: translateY(0);
 }
 
 .map-button {
     background: white;
     border: 1px solid #cbd2dc;
     color: var(--navy);
+    transition: all 0.2s ease;
+}
+
+.map-button:hover,
+.map-button:focus-visible {
+    border-color: var(--blue);
+    background: #f0f7ff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(49, 130, 206, 0.15);
 }
 
 .sos-button i {
@@ -457,6 +495,12 @@ body {
 .quick-card:hover {
     background: #fafbfd;
     transform: translateY(-2px);
+}
+
+.quick-card:focus-visible {
+    outline: 2px solid var(--blue);
+    outline-offset: 2px;
+    background: #f0f4f9;
 }
 
 .quick-icon {
@@ -777,6 +821,10 @@ textarea,
     padding: 12px;
     outline: none;
     font-family: inherit;
+}
+
+input {
+    font-size: 14px;
 }
 
 textarea {
@@ -1153,6 +1201,7 @@ textarea:focus,
 
 .shelter-card {
     background: white;
+    border: 1px solid transparent;
     border-radius: 11px;
     padding: 17px;
     display: grid;
@@ -1160,6 +1209,19 @@ textarea:focus,
     align-items: center;
     gap: 15px;
     box-shadow: 0 3px 15px rgba(24,40,70,.04);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+}
+
+.shelter-card:hover {
+    border-color: var(--border);
+    box-shadow: 0 4px 16px rgba(20, 33, 61, 0.08);
+    transform: translateY(-2px);
+}
+
+.shelter-card:focus-within {
+    outline: 2px solid var(--blue);
+    outline-offset: -2px;
 }
 
 .shelter-icon {
@@ -1178,7 +1240,7 @@ textarea:focus,
 }
 
 .shelter-info p {
-    color: #8893a2;
+    color: #5a6d84;
     font-size: 10px;
     margin: 5px 0;
 }
@@ -1186,7 +1248,7 @@ textarea:focus,
 .shelter-meta {
     display: flex;
     gap: 15px;
-    color: #7d8897;
+    color: #5a6d84;
     font-size: 9px;
 }
 
@@ -1213,6 +1275,14 @@ textarea:focus,
     border-radius: 6px;
     cursor: pointer;
     font-size: 10px;
+    transition: all 0.2s ease;
+    min-height: 36px;
+}
+
+.shelter-status button:hover,
+.shelter-status button:focus-visible {
+    background: #d0e8ff;
+    color: #1a5ab8;
 }
 
 
@@ -1228,9 +1298,23 @@ textarea:focus,
 
 .resource-card {
     background: white;
+    border: 1px solid transparent;
     border-radius: 13px;
     padding: 25px;
     box-shadow: 0 3px 15px rgba(24,40,70,.04);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+}
+
+.resource-card:hover {
+    border-color: var(--border);
+    box-shadow: 0 6px 24px rgba(24,40,70,.08);
+    transform: translateY(-4px);
+}
+
+.resource-card:focus-within {
+    outline: 2px solid var(--blue);
+    outline-offset: -2px;
 }
 
 .resource-icon {
@@ -1281,6 +1365,14 @@ textarea:focus,
     color: #2875c7;
     cursor: pointer;
     font-weight: bold;
+    transition: all 0.2s ease;
+    padding: 4px 8px;
+}
+
+.resource-card button:hover,
+.resource-card button:focus-visible {
+    color: var(--blue);
+    text-decoration: underline;
 }
 
 
@@ -1380,10 +1472,23 @@ textarea:focus,
     border: 1px solid var(--border);
     background: white;
     border-radius: 20px;
-    padding: 7px 12px;
+    padding: 10px 14px;
     cursor: pointer;
     font-size: 10px;
-    color: #536175;
+    color: #3d4556;
+    min-height: 44px;
+    min-width: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.page-navigation button:hover,
+.page-navigation button:focus-visible {
+    background: #f4f7fb;
+    border-color: var(--blue);
+    color: var(--blue);
 }
 
 #pageDots {
@@ -1392,15 +1497,42 @@ textarea:focus,
 }
 
 .page-dot {
-    width: 7px;
-    height: 7px;
-    background: #c9d0da;
+    width: 44px;
+    height: 44px;
+    flex: 0 0 44px;
+    display: grid;
+    place-items: center;
+    background: transparent;
     border-radius: 50%;
     cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.page-dot::before {
+    content: "";
+    width: 12px;
+    height: 12px;
+    background: #c9d0da;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+}
+
+.page-dot:hover::before {
+    background: #a8b2bf;
+}
+
+.page-dot:focus-visible {
+    outline: 2px solid var(--blue);
+    outline-offset: 1px;
 }
 
 .page-dot.active {
-    width: 20px;
+    min-height: 44px;
+}
+
+.page-dot.active::before {
+    width: 24px;
+    height: 12px;
     border-radius: 10px;
     background: var(--red);
 }
@@ -1434,9 +1566,90 @@ textarea:focus,
 }
 
 
+/* Professional Form Input Styling */
+input[type="text"],
+input[type="file"],
+textarea {
+    border: 1.5px solid #dae2eb;
+    border-radius: 8px;
+    padding: 12px;
+    font-size: 13px;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    background: white;
+    font-family: inherit;
+}
+
+input[type="text"]:hover,
+textarea:hover,
+input[type="file"]:hover {
+    border-color: #c0cfe0;
+    background: #fafbfd;
+}
+
+input[type="text"]:focus-visible,
+textarea:focus-visible,
+input[type="file"]:focus-visible {
+    outline: none;
+    border-color: var(--blue);
+    background: white;
+    box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.1);
+}
+
+input[type="text"]::placeholder {
+    color: #9ba8bd;
+}
+
+
+/* Floating SOS Button for Mobile */
+.floating-sos {
+    position: fixed;
+    bottom: 90px;
+    right: 20px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--red);
+    border: none;
+    color: white;
+    cursor: pointer;
+    font-size: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 16px rgba(229, 43, 53, 0.35);
+    z-index: 40;
+    animation: sosPulse 2s infinite;
+    transition: all 0.2s ease;
+}
+
+.floating-sos:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 24px rgba(229, 43, 53, 0.5);
+}
+
+.floating-sos:active {
+    transform: scale(0.95);
+}
+
+@keyframes sosPulse {
+    0%, 100% {
+        box-shadow: 0 4px 16px rgba(229, 43, 53, 0.35);
+    }
+    50% {
+        box-shadow: 0 4px 24px rgba(229, 43, 53, 0.5);
+    }
+}
+
+
 /* ========================================
    RESPONSIVE
 ======================================== */
+
+@media (min-width: 651px) {
+    .floating-sos {
+        display: none;
+    }
+}
 
 @media(max-width: 900px) {
 
@@ -1460,6 +1673,32 @@ textarea:focus,
         justify-content: center;
     }
 
+    .nav-item:hover::after {
+        content: attr(aria-label);
+        position: absolute;
+        left: 80px;
+        background: rgba(0, 0, 0, 0.95);
+        color: white;
+        padding: 8px 12px;
+        border-radius: 6px;
+        white-space: nowrap;
+        font-size: 12px;
+        z-index: 100;
+        pointer-events: none;
+        animation: tooltipFade 0.2s ease;
+    }
+
+    @keyframes tooltipFade {
+        from {
+            opacity: 0;
+            transform: translateX(-8px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
     .sidebar-sos {
         justify-content: center;
     }
@@ -1473,7 +1712,7 @@ textarea:focus,
     }
 
     .hero-content {
-        width: 65%;
+        width: min(65%, 400px);
     }
 
     .report-container {
@@ -1522,6 +1761,7 @@ textarea:focus,
 
     .page {
         padding: 18px 13px 65px;
+        font-size: 14px;
     }
 
     .hero {
@@ -1536,10 +1776,6 @@ textarea:focus,
 
     .hero-image {
         min-height: 180px;
-    }
-
-    .hero h1 {
-        font-size: 37px;
     }
 
     .hero-buttons {

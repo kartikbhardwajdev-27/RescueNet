@@ -20,7 +20,7 @@
          TOAST
     ======================================== -->
 
-    <div id="toast"></div>
+    <div id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
 
     <!-- ========================================
@@ -52,32 +52,32 @@
 
             <nav>
 
-                <button class="nav-item active" data-page="home">
+                <button class="nav-item active" data-page="home" aria-label="Home">
                     <i class="fa-solid fa-house"></i>
                     <span>Home</span>
                 </button>
 
-                <button class="nav-item" data-page="map">
+                <button class="nav-item" data-page="map" aria-label="View Live Map">
                     <i class="fa-solid fa-map"></i>
                     <span>Map</span>
                 </button>
 
-                <button class="nav-item" data-page="report">
+                <button class="nav-item" data-page="report" aria-label="Report Incident">
                     <i class="fa-solid fa-file-circle-plus"></i>
                     <span>Report Incident</span>
                 </button>
 
-                <button class="nav-item" data-page="shelters">
+                <button class="nav-item" data-page="shelters" aria-label="Find Shelters">
                     <i class="fa-solid fa-house-medical"></i>
                     <span>Shelters</span>
                 </button>
 
-                <button class="nav-item" data-page="resources">
+                <button class="nav-item" data-page="resources" aria-label="Emergency Resources">
                     <i class="fa-solid fa-book-open"></i>
                     <span>Resources</span>
                 </button>
 
-                <button class="nav-item" data-page="about">
+                <button class="nav-item" data-page="about" aria-label="About RescueNet">
                     <i class="fa-solid fa-circle-info"></i>
                     <span>About</span>
                 </button>
@@ -122,15 +122,15 @@
 
                 <div class="top-actions">
 
-                    <button class="notification">
-                        <i class="fa-regular fa-bell"></i>
+                    <button class="notification" aria-label="View notifications">
+                        <i class="fa-regular fa-bell" aria-hidden="true"></i>
                         <span></span>
                     </button>
 
-                    <div class="user">
+                    <div class="user" role="button" tabindex="0" aria-label="Open user menu">
 
                         <div class="avatar">
-                            <i class="fa-solid fa-user"></i>
+                            <i class="fa-solid fa-user" aria-hidden="true"></i>
                         </div>
 
                         <div class="user-info">
@@ -138,7 +138,7 @@
                             <small>Welcome back</small>
                         </div>
 
-                        <i class="fa-solid fa-chevron-down"></i>
+                        <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
 
                     </div>
 
@@ -477,11 +477,14 @@
 
 
                             <label for="description">
-                                Description
+                                Incident Description
                             </label>
 
                             <textarea id="description"
-                                placeholder="Describe the situation..."></textarea>
+                                placeholder="Describe the incident..."
+                                required
+                                aria-describedby="desc-help"></textarea>
+                            <small id="desc-help">Provide detailed information about the incident</small>
 
 
 
@@ -493,7 +496,9 @@
 
                                 <input id="location"
                                     type="text"
-                                    placeholder="Enter location">
+                                    placeholder="Enter location or coordinates..."
+                                    required
+                                    aria-describedby="loc-help">
 
                                 <button onclick="getLocation()">
                                     <i class="fa-solid fa-location-crosshairs"></i>
@@ -501,6 +506,7 @@
                                 </button>
 
                             </div>
+                            <small id="loc-help">Enter address or allow the app to detect your location</small>
 
 
 
@@ -508,6 +514,7 @@
                                 <small>(Optional)</small>
                             </label>
 
+                            <label for="fileInput">Upload Media Files</label>
                             <label class="upload-box">
 
                                 <i class="fa-solid fa-camera"></i>
@@ -520,7 +527,9 @@
                                     type="file"
                                     id="fileInput"
                                     multiple
-                                    accept="image/*,video/*">
+                                    accept="image/*,video/*"
+                                    aria-describedby="file-help">
+                                <small id="file-help">You can upload photos or videos of the incident</small>
 
                             </label>
 
@@ -1158,6 +1167,11 @@
 
             </div>
 
+
+            <!-- Floating Emergency SOS Button (Mobile Only) -->
+            <button class="floating-sos" aria-label="Send SOS Emergency Alert" onclick="sendSOS()" title="Tap to send emergency SOS alert">
+                <i class="fa-solid fa-phone" aria-hidden="true"></i>
+            </button>
 
         </main>
 
