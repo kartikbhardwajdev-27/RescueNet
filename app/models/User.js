@@ -1,8 +1,8 @@
 import mongoose from "mongoose";
+import { ORG_TYPES, USER_ROLES } from "../lib/authRules.js";
 import pointSchema from "./geoPoint.js";
 
-export const USER_ROLES = ["citizen", "organization"];
-export const ORG_TYPES = ["NGO", "govt", "volunteer group"];
+export { ORG_TYPES, USER_ROLES };
 
 // Used by the org validators below: org details only matter for organizations.
 function isOrganization() {

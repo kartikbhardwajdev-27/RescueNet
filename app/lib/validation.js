@@ -1,27 +1,20 @@
+import {
+  ORG_TYPES,
+  PASSWORD_MAX_BYTES,
+  PASSWORD_MIN_LENGTH,
+  USER_ROLES,
+  isPasswordTooLong,
+  isValidEmail,
+  normalizeEmail,
+} from "@/lib/authRules";
 import { isLngLat } from "@/models/geoPoint";
-import { ORG_TYPES, USER_ROLES } from "@/models/User";
 
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-export const PASSWORD_MIN_LENGTH = 8;
-// bcrypt silently ignores everything past 72 bytes, so longer passwords are rejected.
-export const PASSWORD_MAX_BYTES = 72;
+// The login route imports these from here.
+export { isPasswordTooLong, normalizeEmail };
 
 // Everything below checks `typeof === "string"` first so a JSON object like
 // { "$ne": null } can never reach a query.
 const isNonEmptyString = (value) => typeof value === "string" && value.trim().length > 0;
-
-export function normalizeEmail(email) {
-  return email.trim().toLowerCase();
-}
-
-export function isValidEmail(email) {
-  return email.length <= 254 && EMAIL_PATTERN.test(email);
-}
-
-export function isPasswordTooLong(password) {
-  return Buffer.byteLength(password) > PASSWORD_MAX_BYTES;
-}
 
 // Optional free-text field: absent is fine, present must be a string.
 function optionalText(value, field, errors) {
