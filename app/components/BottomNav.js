@@ -55,7 +55,7 @@ export default function BottomNav() {
           aria-haspopup="dialog"
           aria-label="Emergency SOS"
           onClick={openSos}
-          className="-mt-8 mb-1 flex size-16 flex-col items-center justify-center gap-0.5 rounded-full bg-sos font-display text-white shadow-sos ring-4 ring-base transition-colors duration-150 hover:bg-sos-hover motion-safe:animate-sos-pulse motion-safe:active:scale-90"
+          className="-mt-8 mb-1 flex size-16 flex-col items-center justify-center gap-0.5 rounded-full bg-sos font-display text-white shadow-sos ring-4 ring-canvas transition-colors duration-150 hover:bg-sos-hover motion-safe:animate-sos-pulse motion-safe:active:scale-90"
         >
           <Siren className="size-6" aria-hidden="true" />
           <span className="text-[11px] leading-none font-bold" aria-hidden="true">
