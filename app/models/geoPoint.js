@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 // GeoJSON Point shared by User, Incident and Shelter. Coordinates are in
 // GeoJSON order: [longitude, latitude].
-function isLngLat(coords) {
+export function isLngLat(coords) {
   return (
     Array.isArray(coords) &&
     coords.length === 2 &&
