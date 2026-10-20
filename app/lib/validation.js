@@ -7,8 +7,13 @@ import {
   isValidEmail,
   normalizeEmail,
 } from "@/lib/authRules";
+import {
+  INCIDENT_SEVERITIES,
+  INCIDENT_STATUSES,
+  INCIDENT_TYPES,
+  MAX_DESCRIPTION_LENGTH,
+} from "@/lib/incidentRules";
 import { isLngLat } from "@/models/geoPoint";
-import { INCIDENT_SEVERITIES, INCIDENT_STATUSES, INCIDENT_TYPES } from "@/models/Incident";
 
 // The login route imports these from here.
 export { isPasswordTooLong, normalizeEmail };
@@ -95,7 +100,6 @@ export function validateRegistration(body) {
 // Incidents and SOS
 // ---------------------------------------------------------------------------
 
-export const MAX_DESCRIPTION_LENGTH = 1000;
 const MAX_ADDRESS_LENGTH = 300;
 const MAX_SOS_MESSAGE_LENGTH = 500;
 

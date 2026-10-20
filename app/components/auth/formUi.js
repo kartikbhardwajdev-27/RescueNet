@@ -9,7 +9,7 @@ import { CircleAlert, Eye, EyeOff, LoaderCircle } from "lucide-react";
 const baseInput =
   "w-full rounded-2xl border bg-white/5 px-4 py-3 text-ink placeholder:text-ink-muted/70 transition-colors duration-150";
 
-function inputClass(invalid, extra = "") {
+export function inputClass(invalid, extra = "") {
   const state = invalid ? "border-warn" : "border-line-strong hover:border-white/25 focus:border-brand-to";
   return `${baseInput} ${state} ${extra}`;
 }

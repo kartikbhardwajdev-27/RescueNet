@@ -1,9 +1,8 @@
 import mongoose from "mongoose";
+import { INCIDENT_SEVERITIES, INCIDENT_STATUSES, INCIDENT_TYPES } from "../lib/incidentRules.js";
 import pointSchema from "./geoPoint.js";
 
-export const INCIDENT_TYPES = ["flood", "fire", "earthquake", "medical", "other"];
-export const INCIDENT_SEVERITIES = ["low", "medium", "high", "critical"];
-export const INCIDENT_STATUSES = ["reported", "in_progress", "resolved"];
+export { INCIDENT_SEVERITIES, INCIDENT_STATUSES, INCIDENT_TYPES };
 
 const incidentSchema = new mongoose.Schema(
   {
