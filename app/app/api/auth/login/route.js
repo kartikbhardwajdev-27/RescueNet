@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import { assertAuthConfigured, setAuthCookie } from "@/lib/auth";
 import connectDB from "@/lib/db";
 import { errorResponse, readJsonBody } from "@/lib/http";
+import { rateLimit } from "@/lib/rateLimit";
 import { isPasswordTooLong, normalizeEmail } from "@/lib/validation";
 import User from "@/models/User";
 
@@ -16,6 +17,9 @@ async function getDummyHash() {
 }
 
 export async function POST(request) {
+  const limited = rateLimit(request, "login");
+  if (limited) return limited;
+
   assertAuthConfigured();
 
   const body = await readJsonBody(request);

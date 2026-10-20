@@ -2,12 +2,16 @@ import bcrypt from "bcryptjs";
 import { assertAuthConfigured, setAuthCookie } from "@/lib/auth";
 import connectDB from "@/lib/db";
 import { errorResponse, readJsonBody } from "@/lib/http";
+import { rateLimit } from "@/lib/rateLimit";
 import { validateRegistration } from "@/lib/validation";
 import User from "@/models/User";
 
 const BCRYPT_COST = 10;
 
 export async function POST(request) {
+  const limited = rateLimit(request, "register");
+  if (limited) return limited;
+
   // Fail before touching the database if the server can't issue tokens.
   assertAuthConfigured();
 
