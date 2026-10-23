@@ -1,23 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { Activity, CircleHelp, Flame, HeartPulse, LoaderCircle, MapPin, Waves } from "lucide-react";
+import { CircleHelp, LoaderCircle, MapPin } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { FormAlert, Field, SubmitButton, TextInput, inputClass } from "@/components/auth/formUi";
 import Card from "@/components/Card";
+import { INCIDENT_TYPE_META } from "@/components/incidentMeta";
 import { useToast } from "@/components/SosProvider";
 import { createIncident, incidentReference } from "@/lib/api";
 import { describeLocationError, getCurrentLocation } from "@/lib/geo";
 import { INCIDENT_SEVERITIES, INCIDENT_TYPES, MAX_DESCRIPTION_LENGTH } from "@/lib/incidentRules";
-
-// Labels and icons for the enum values in lib/incidentRules.js.
-const TYPE_META = {
-  flood: { label: "Flood", icon: Waves },
-  fire: { label: "Fire", icon: Flame },
-  earthquake: { label: "Earthquake", icon: Activity },
-  medical: { label: "Medical", icon: HeartPulse },
-  other: { label: "Other", icon: CircleHelp },
-};
 
 const SEVERITY_HELP = {
   low: "Minor. Nobody is in immediate danger.",
@@ -158,7 +150,7 @@ export default function ReportForm() {
           <legend className="mb-2.5 font-display text-lg font-bold">What is happening?</legend>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
             {INCIDENT_TYPES.map((type, index) => {
-              const { label, icon: Icon } = TYPE_META[type] ?? { label: type, icon: CircleHelp };
+              const { label, icon: Icon } = INCIDENT_TYPE_META[type] ?? { label: type, icon: CircleHelp };
               const selected = values.type === type;
               return (
                 <label key={type} className={`${chipBase} ${selected ? chipOn : chipOff}`}>

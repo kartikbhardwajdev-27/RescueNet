@@ -13,6 +13,13 @@ import {
   INCIDENT_TYPES,
   MAX_DESCRIPTION_LENGTH,
 } from "@/lib/incidentRules";
+import {
+  MAX_SHELTER_ADDRESS_LENGTH,
+  MAX_SHELTER_CAPACITY,
+  MAX_SHELTER_NAME_LENGTH,
+  PHONE_PATTERN,
+  SHELTER_STATUSES,
+} from "@/lib/shelterRules";
 import { isLngLat } from "@/models/geoPoint";
 
 // The login route imports these from here.
@@ -199,60 +206,94 @@ export function validateSosInput(body) {
   return { errors, data };
 }
 
-// GET /api/incidents query string -> { errors, filter, limit }.
+// ---- list query parsing, shared by GET /api/incidents and GET /api/shelters ----
 // Enum filters must be exact values. limit and radiusKm are clamped to their
 // maximums but must otherwise be sensible numbers.
-export function parseIncidentQuery(params) {
-  const errors = {};
-  const filter = {};
 
-  for (const [name, allowed] of [
-    ["status", INCIDENT_STATUSES],
-    ["type", INCIDENT_TYPES],
-    ["severity", INCIDENT_SEVERITIES],
-  ]) {
+function readEnumFilters(params, errors, filter, specs) {
+  for (const [name, allowed] of specs) {
     const value = params.get(name);
     if (value === null) continue;
     if (allowed.includes(value)) filter[name] = value;
     else errors[name] = `${name} must be one of: ${allowed.join(", ")}`;
   }
+}
 
-  let limit = DEFAULT_LIMIT;
-  const rawLimit = params.get("limit");
-  if (rawLimit !== null) {
-    if (!WHOLE_NUMBER.test(rawLimit) || Number(rawLimit) < 1) {
-      errors.limit = `limit must be a whole number from 1 to ${MAX_LIMIT}`;
-    } else {
-      limit = Math.min(Number(rawLimit), MAX_LIMIT);
-    }
+function readLimit(params, errors) {
+  const raw = params.get("limit");
+  if (raw === null) return DEFAULT_LIMIT;
+  if (!WHOLE_NUMBER.test(raw) || Number(raw) < 1) {
+    errors.limit = `limit must be a whole number from 1 to ${MAX_LIMIT}`;
+    return DEFAULT_LIMIT;
   }
+  return Math.min(Number(raw), MAX_LIMIT);
+}
 
+// Reads near=lng,lat and radiusKm. Returns { lng, lat, radiusKm }, or null when
+// near is absent or something was invalid (the problem is recorded in `errors`).
+function readNear(params, errors) {
   const rawNear = params.get("near");
   const rawRadius = params.get("radiusKm");
   if (rawNear === null) {
     if (rawRadius !== null) errors.radiusKm = "radiusKm can only be used together with near=lng,lat";
-  } else {
-    const parts = rawNear.split(",").map((part) => (DECIMAL_NUMBER.test(part.trim()) ? Number(part) : NaN));
-    const [lng, lat] = parts;
-    if (parts.length !== 2 || !isLngLat([lng, lat])) {
-      errors.near = "near must be lng,lat, for example near=77.209,28.6139 (lng -180..180, lat -90..90)";
-    }
+    return null;
+  }
 
-    let radiusKm = DEFAULT_RADIUS_KM;
-    if (rawRadius !== null) {
-      if (!DECIMAL_NUMBER.test(rawRadius) || Number(rawRadius) <= 0) {
-        errors.radiusKm = `radiusKm must be a number greater than 0 (max ${MAX_RADIUS_KM})`;
-      } else {
-        radiusKm = Math.min(Number(rawRadius), MAX_RADIUS_KM);
-      }
-    }
+  const parts = rawNear.split(",").map((part) => (DECIMAL_NUMBER.test(part.trim()) ? Number(part) : NaN));
+  const [lng, lat] = parts;
+  if (parts.length !== 2 || !isLngLat([lng, lat])) {
+    errors.near = "near must be lng,lat, for example near=77.209,28.6139 (lng -180..180, lat -90..90)";
+  }
 
-    if (!errors.near && !errors.radiusKm) {
-      filter.location = { $geoWithin: { $centerSphere: [[lng, lat], radiusKm / EARTH_RADIUS_KM] } };
+  let radiusKm = DEFAULT_RADIUS_KM;
+  if (rawRadius !== null) {
+    if (!DECIMAL_NUMBER.test(rawRadius) || Number(rawRadius) <= 0) {
+      errors.radiusKm = `radiusKm must be a number greater than 0 (max ${MAX_RADIUS_KM})`;
+    } else {
+      radiusKm = Math.min(Number(rawRadius), MAX_RADIUS_KM);
     }
   }
 
+  return errors.near || errors.radiusKm ? null : { lng, lat, radiusKm };
+}
+
+// GET /api/incidents query string -> { errors, filter, limit }. Incidents stay
+// newest first, so `near` is a plain "within radius" filter.
+export function parseIncidentQuery(params) {
+  const errors = {};
+  const filter = {};
+
+  readEnumFilters(params, errors, filter, [
+    ["status", INCIDENT_STATUSES],
+    ["type", INCIDENT_TYPES],
+    ["severity", INCIDENT_SEVERITIES],
+  ]);
+  const limit = readLimit(params, errors);
+  const near = readNear(params, errors);
+  if (near) {
+    filter.location = { $geoWithin: { $centerSphere: [[near.lng, near.lat], near.radiusKm / EARTH_RADIUS_KM] } };
+  }
+
   return { errors, filter, limit };
+}
+
+// GET /api/shelters query string -> { errors, filter, limit, nearest }.
+// With `near`, results come back nearest first ($near sorts by distance), so
+// the caller must not add its own sort; `nearest` says which case this is.
+export function parseShelterQuery(params) {
+  const errors = {};
+  const filter = {};
+
+  readEnumFilters(params, errors, filter, [["status", SHELTER_STATUSES]]);
+  const limit = readLimit(params, errors);
+  const near = readNear(params, errors);
+  if (near) {
+    filter.location = {
+      $near: { $geometry: { type: "Point", coordinates: [near.lng, near.lat] }, $maxDistance: near.radiusKm * 1000 },
+    };
+  }
+
+  return { errors, filter, limit, nearest: Boolean(near) };
 }
 
 // PATCH /api/incidents/[id] body -> { error } or { status }. Only `status` may be sent.
@@ -263,4 +304,102 @@ export function validateStatusUpdate(body) {
     return { error: `Status must be one of: ${UPDATABLE_STATUSES.join(", ")}` };
   }
   return { status: body.status };
+}
+
+// ---------------------------------------------------------------------------
+// Shelters
+// ---------------------------------------------------------------------------
+
+const UPDATABLE_SHELTER_FIELDS = ["occupied", "capacity", "status"];
+
+const isWholeNumber = (value, min, max) => Number.isInteger(value) && value >= min && value <= max;
+
+// POST /api/shelters body -> { errors, data }. Only whitelisted fields are read,
+// so a body can't set createdBy or seeded.
+export function validateShelterInput(body) {
+  const errors = {};
+  const data = {};
+
+  if (typeof body.name !== "string" || body.name.trim() === "") {
+    errors.name = "Name is required";
+  } else if (body.name.trim().length > MAX_SHELTER_NAME_LENGTH) {
+    errors.name = `Name must be at most ${MAX_SHELTER_NAME_LENGTH} characters`;
+  } else {
+    data.name = body.name.trim();
+  }
+
+  if (typeof body.address !== "string" || body.address.trim() === "") {
+    errors.address = "Address is required";
+  } else if (body.address.trim().length > MAX_SHELTER_ADDRESS_LENGTH) {
+    errors.address = `Address must be at most ${MAX_SHELTER_ADDRESS_LENGTH} characters`;
+  } else {
+    data.address = body.address.trim();
+  }
+
+  const location = parseLocation(body.location);
+  if (location.error) errors.location = location.error;
+  else data.location = location.value;
+
+  if (!isWholeNumber(body.capacity, 1, MAX_SHELTER_CAPACITY)) {
+    errors.capacity = `Capacity must be a whole number from 1 to ${MAX_SHELTER_CAPACITY}`;
+  } else {
+    data.capacity = body.capacity;
+  }
+
+  if (body.occupied != null) {
+    if (!isWholeNumber(body.occupied, 0, MAX_SHELTER_CAPACITY)) {
+      errors.occupied = "Occupied must be a whole number, 0 or more";
+    } else if (data.capacity !== undefined && body.occupied > data.capacity) {
+      errors.occupied = "Occupied cannot exceed capacity";
+    } else {
+      data.occupied = body.occupied;
+    }
+  }
+
+  if (body.status != null) {
+    if (SHELTER_STATUSES.includes(body.status)) data.status = body.status;
+    else errors.status = `Status must be one of: ${SHELTER_STATUSES.join(", ")}`;
+  }
+
+  const phone = readOptionalText(body.contactPhone, "Contact phone", 30);
+  if (phone.error) errors.contactPhone = phone.error;
+  else if (phone.value !== undefined) {
+    if (PHONE_PATTERN.test(phone.value)) data.contactPhone = phone.value;
+    else errors.contactPhone = "Contact phone must be 5 to 30 characters: digits, spaces and + - ( ) .";
+  }
+
+  return { errors, data };
+}
+
+// PATCH /api/shelters/[id] body -> { errors, updates }. Only occupied, capacity
+// and status may be sent; checks that involve the stored shelter (occupied vs
+// capacity) are left to the route.
+export function validateShelterUpdate(body) {
+  const errors = {};
+  const updates = {};
+
+  const extra = Object.keys(body).filter((key) => !UPDATABLE_SHELTER_FIELDS.includes(key));
+  if (extra.length > 0) {
+    errors.body = `Only ${UPDATABLE_SHELTER_FIELDS.join(", ")} can be updated (not: ${extra.join(", ")})`;
+    return { errors, updates };
+  }
+  if (!UPDATABLE_SHELTER_FIELDS.some((key) => body[key] !== undefined)) {
+    errors.body = `Send at least one of: ${UPDATABLE_SHELTER_FIELDS.join(", ")}`;
+    return { errors, updates };
+  }
+
+  if (body.capacity !== undefined) {
+    if (isWholeNumber(body.capacity, 1, MAX_SHELTER_CAPACITY)) updates.capacity = body.capacity;
+    else errors.capacity = `Capacity must be a whole number from 1 to ${MAX_SHELTER_CAPACITY}`;
+  }
+  if (body.occupied !== undefined) {
+    if (isWholeNumber(body.occupied, 0, MAX_SHELTER_CAPACITY)) updates.occupied = body.occupied;
+    else errors.occupied = "Occupied must be a whole number, 0 or more";
+  }
+  if (body.status !== undefined) {
+    if (SHELTER_STATUSES.includes(body.status)) updates.status = body.status;
+    else errors.status = `Status must be one of: ${SHELTER_STATUSES.join(", ")}`;
+  }
+
+  return { errors, updates };
 }

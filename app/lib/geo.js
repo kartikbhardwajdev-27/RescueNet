@@ -11,7 +11,9 @@ const round = (n) => Number(n.toFixed(6));
 // Resolves { lng, lat, accuracy } (accuracy in metres). Rejects with an Error
 // whose `code` is "denied" | "unavailable" | "timeout" | "unsupported" | "aborted".
 // Pass an AbortSignal to cancel while waiting.
-export function getCurrentLocation({ timeoutMs = LOCATION_TIMEOUT_MS, signal } = {}) {
+// highAccuracy asks for GPS-grade fixes (slower, uses more battery); maxAgeMs is
+// how old a cached fix may be.
+export function getCurrentLocation({ timeoutMs = LOCATION_TIMEOUT_MS, signal, highAccuracy = true, maxAgeMs = 10_000 } = {}) {
   return new Promise((resolve, reject) => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
       reject(locationError("unsupported"));
@@ -39,7 +41,7 @@ export function getCurrentLocation({ timeoutMs = LOCATION_TIMEOUT_MS, signal } =
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => finish(resolve, { lng: round(coords.longitude), lat: round(coords.latitude), accuracy: coords.accuracy }),
       (err) => finish(reject, locationError(err.code === 1 ? "denied" : err.code === 3 ? "timeout" : "unavailable")),
-      { enableHighAccuracy: true, timeout: timeoutMs, maximumAge: 10_000 },
+      { enableHighAccuracy: highAccuracy, timeout: timeoutMs, maximumAge: maxAgeMs },
     );
   });
 }
@@ -56,4 +58,17 @@ export function describeLocationError(code) {
     default:
       return "Your location isn't available right now.";
   }
+}
+
+// Straight-line distance in kilometres between two { lng, lat } points.
+export function distanceKm(a, b) {
+  const rad = (deg) => (deg * Math.PI) / 180;
+  const h = Math.sin(rad(b.lat - a.lat) / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(rad(b.lng - a.lng) / 2) ** 2;
+  return 2 * 6371 * Math.asin(Math.sqrt(h));
+}
+
+// "850 m", "1.2 km", "14 km".
+export function formatDistance(km) {
+  if (km < 1) return `${Math.max(10, Math.round((km * 1000) / 10) * 10)} m`;
+  return km < 10 ? `${km.toFixed(1)} km` : `${Math.round(km)} km`;
 }

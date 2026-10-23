@@ -1,7 +1,8 @@
 import mongoose from "mongoose";
+import { SHELTER_STATUSES } from "../lib/shelterRules.js";
 import pointSchema from "./geoPoint.js";
 
-export const SHELTER_STATUSES = ["open", "full", "closed"];
+export { SHELTER_STATUSES };
 
 const shelterSchema = new mongoose.Schema(
   {
@@ -23,6 +24,10 @@ const shelterSchema = new mongoose.Schema(
     },
     status: { type: String, enum: SHELTER_STATUSES, default: "open" },
     contactPhone: { type: String, trim: true },
+    // The organization that added it. Seeded demo shelters have none, which
+    // is also what makes them read-only: nobody owns them.
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    seeded: { type: Boolean, default: false },
   },
   { timestamps: true },
 );

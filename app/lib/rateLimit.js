@@ -11,6 +11,7 @@ export const RATE_LIMITS = {
   register: { limit: 10, windowMs: 60 * 60 * 1000 },
   incidents: { limit: 10, windowMs: 10 * 60 * 1000 },
   sos: { limit: 10, windowMs: 10 * 60 * 1000 },
+  shelters: { limit: 20, windowMs: 60 * 60 * 1000 },
 };
 
 const PRUNE_INTERVAL_MS = 60 * 1000;
