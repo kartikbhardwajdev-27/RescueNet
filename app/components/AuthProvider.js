@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import useOutbox from "./useOutbox";
 
 const AuthContext = createContext(null);
 
@@ -13,12 +14,18 @@ export function useAuth() {
 const NETWORK_ERROR = "Couldn't reach the server. Check your connection and try again.";
 const GENERIC_ERROR = "Something went wrong. Please try again.";
 
+// Resolves { user } (the person, or null when the server clearly says "not
+// logged in": a 401), or { user: null, unreachable: true } when it could not
+// tell: no connection, or the server or its database is failing. Not being able
+// to find out is not the same as being logged out, so callers must not treat it
+// that way (the account page would send you to the login screen while offline).
 async function fetchMe() {
   try {
     const res = await fetch("/api/auth/me", { cache: "no-store" });
-    return res.ok ? await res.json() : null;
+    if (res.ok) return { user: await res.json() };
+    return res.status === 401 ? { user: null } : { user: null, unreachable: true };
   } catch {
-    return null;
+    return { user: null, unreachable: true };
   }
 }
 
@@ -50,6 +57,8 @@ function toResult({ ok, status, data }) {
 export default function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  // The last attempt to find out who is logged in could not reach the server.
+  const [unreachable, setUnreachable] = useState(false);
   // Bumped by every login / register / logout, so a slow initial /me response
   // can't overwrite a newer result.
   const version = useRef(0);
@@ -59,7 +68,10 @@ export default function AuthProvider({ children }) {
     const startedAt = version.current;
     fetchMe().then((me) => {
       if (ignore) return;
-      if (version.current === startedAt) setUser(me);
+      if (version.current === startedAt) {
+        setUser(me.user);
+        setUnreachable(Boolean(me.unreachable));
+      }
       setLoading(false);
     });
     return () => {
@@ -67,24 +79,52 @@ export default function AuthProvider({ children }) {
     };
   }, []);
 
+  // Opened while the server was unreachable, so we never learned who is logged
+  // in: ask again as soon as it can be reached.
+  const { serverState } = useOutbox();
+
   const refresh = useCallback(async () => {
     const startedAt = ++version.current;
     const me = await fetchMe();
-    if (version.current === startedAt) setUser(me);
-    return me;
+    if (version.current === startedAt) {
+      // Keep who we had if the server could not be asked.
+      if (!me.unreachable) setUser(me.user);
+      setUnreachable(Boolean(me.unreachable));
+    }
+    return me.user;
   }, []);
+
+  useEffect(() => {
+    if (!unreachable || serverState !== "online") return;
+    let ignore = false;
+    const startedAt = ++version.current;
+    fetchMe().then((me) => {
+      if (ignore || version.current !== startedAt) return;
+      if (!me.unreachable) setUser(me.user);
+      setUnreachable(Boolean(me.unreachable));
+    });
+    return () => {
+      ignore = true;
+    };
+  }, [unreachable, serverState]);
 
   const login = useCallback(async ({ email, password }) => {
     version.current++;
     const result = toResult(await postJson("/api/auth/login", { email, password }));
-    if (result.ok) setUser(result.user);
+    if (result.ok) {
+      setUser(result.user);
+      setUnreachable(false);
+    }
     return result;
   }, []);
 
   const register = useCallback(async (details) => {
     version.current++;
     const result = toResult(await postJson("/api/auth/register", details));
-    if (result.ok) setUser(result.user);
+    if (result.ok) {
+      setUser(result.user);
+      setUnreachable(false);
+    }
     return result;
   }, []);
 
@@ -96,8 +136,8 @@ export default function AuthProvider({ children }) {
   }, []);
 
   const value = useMemo(
-    () => ({ user, loading, login, register, logout, refresh }),
-    [user, loading, login, register, logout, refresh],
+    () => ({ user, loading, unreachable, login, register, logout, refresh }),
+    [user, loading, unreachable, login, register, logout, refresh],
   );
 
   return <AuthContext value={value}>{children}</AuthContext>;

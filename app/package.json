@@ -7,7 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "seed:shelters": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/seed-shelters.mjs"
+    "seed:shelters": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/seed-shelters.mjs",
+    "start:lan": "node scripts/lan.mjs",
+    "lan:url": "node scripts/lan.mjs --print",
+    "icons": "node scripts/generate-icons.mjs"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",

@@ -1,11 +1,14 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
-import { incidentReference, sendSos } from "@/lib/api";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { incidentReference } from "@/lib/api";
 import { getCurrentLocation } from "@/lib/geo";
+import { onOutboxEvent, submitToOutbox } from "@/lib/outbox";
+import { isPending } from "@/lib/outboxRules";
 import { useAuth } from "./AuthProvider";
 import SosModal from "./SosModal";
 import Toast from "./Toast";
+import useOutbox from "./useOutbox";
 
 const SosContext = createContext(null);
 
@@ -34,7 +37,11 @@ const NO_LOCATION_MESSAGE = "Couldn't get your location. Enable location and try
 // show a toast. They render here, outside any nav element, so no transformed
 // ancestor can affect their fixed positioning.
 //
-// SOS flow: locate (10 s limit) -> POST /api/sos -> toast with a reference.
+// SOS flow: locate (10 s limit) -> save in the outbox and send (lib/outbox.js).
+//   sent    -> toast with a reference
+//   queued  -> the server could not be reached; the modal stays open and says
+//              the alert is saved and will send by itself
+//   failed  -> the error is shown in the modal
 // phase: "idle" | "locating" | "sending".
 export default function SosProvider({ children }) {
   const { user } = useAuth();
@@ -43,6 +50,10 @@ export default function SosProvider({ children }) {
   const [sosError, setSosError] = useState("");
   const [sosNote, setSosNote] = useState("");
   const [toast, setToast] = useState(null);
+  const outbox = useOutbox();
+  // An SOS that is saved but not yet delivered. Only one at a time: pressing SOS
+  // again would only queue a second alert for the same emergency.
+  const waitingSos = outbox.items.find((item) => item.kind === "sos" && isPending(item)) ?? null;
 
   // Refs mirror state the async flow needs to read after an await.
   const openRef = useRef(false);
@@ -118,10 +129,10 @@ export default function SosProvider({ children }) {
     }
 
     setPhase("sending");
-    const result = await sendSos(location);
+    const result = await submitToOutbox({ kind: "sos", payload: { location } });
 
     setPhase("idle");
-    if (result.ok) {
+    if (result.status === "sent") {
       openRef.current = false;
       setSosOpen(false);
       setSosError("");
@@ -130,10 +141,63 @@ export default function SosProvider({ children }) {
       showToast(`SOS sent${source}. Reference: ${incidentReference(result.id)}`, { kind: "sos", duration: 9000 });
       return;
     }
+    if (result.status === "queued") {
+      // Saved. An open modal switches to its "queued" state by itself (it reads
+      // the outbox); if it was closed meanwhile, say so in a toast.
+      setSosError("");
+      if (!openRef.current) {
+        showToast("SOS saved. It will send when the connection returns.", { kind: "sos", duration: 9000 });
+      }
+      return;
+    }
     // The toast sits behind an open modal, so show the error inside it instead.
     if (openRef.current) setSosError(result.message);
     else showToast(result.message, { kind: "error", duration: 9000 });
   }, [user, setPhase, showToast]);
+
+  // Saved items that finish later, while nobody is watching them. There is one
+  // toast, so results that arrive within a moment of each other (the SOS and a
+  // report that were waiting together) are put in one message. Otherwise the
+  // later one would wipe the earlier, and the SOS confirmation must not be lost.
+  const resultsRef = useRef({ timer: null, events: [] });
+  useEffect(() => {
+    const batch = resultsRef.current;
+
+    const announce = () => {
+      batch.timer = null;
+      const events = batch.events.splice(0);
+      const sent = events.filter((event) => event.type === "sent").map((event) => event.item);
+      const failed = events.filter((event) => event.type === "failed").map((event) => event.item);
+
+      const sentSos = sent.filter((item) => item.kind === "sos");
+      const sentReports = sent.filter((item) => item.kind === "report");
+      const parts = [];
+      if (sentSos.length) parts.push(`SOS sent. Reference: ${sentSos.map((item) => incidentReference(item.result.id)).join(", ")}.`);
+      if (sentReports.length === 1) parts.push(`Saved report sent. Reference: ${incidentReference(sentReports[0].result.id)}.`);
+      else if (sentReports.length > 1) parts.push(`${sentReports.length} saved reports sent.`);
+      for (const item of failed) parts.unshift(`A saved ${item.kind === "sos" ? "SOS" : "report"} couldn't be sent: ${item.lastError}.`);
+
+      if (parts.length === 0) return;
+      const kind = failed.length ? "error" : sentSos.length ? "sos" : "success";
+      showToast(parts.join(" "), { kind, duration: 9000 });
+    };
+
+    const stop = onOutboxEvent((event) => {
+      // A queued SOS that was waiting in the open modal is done: close it now.
+      if (event.type === "sent" && event.item.kind === "sos" && openRef.current) {
+        openRef.current = false;
+        setSosOpen(false);
+      }
+      batch.events.push(event);
+      batch.timer ??= setTimeout(announce, 400);
+    });
+    return () => {
+      stop();
+      clearTimeout(batch.timer);
+      batch.timer = null;
+      batch.events.length = 0;
+    };
+  }, [showToast]);
 
   const value = useMemo(() => ({ openSos, showToast }), [openSos, showToast]);
 
@@ -145,6 +209,7 @@ export default function SosProvider({ children }) {
         phase={phase}
         error={sosError}
         note={sosNote}
+        queued={waitingSos}
         onClose={closeSos}
         onConfirm={confirmSos}
       />

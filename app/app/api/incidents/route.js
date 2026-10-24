@@ -1,11 +1,31 @@
 import { getCurrentUser } from "@/lib/auth";
 import connectDB from "@/lib/db";
+import ensureIndexes from "@/lib/ensureIndexes";
 import { errorResponse, readJsonBody } from "@/lib/http";
+import { REPLAY_HEADERS, clientIdFor, isDuplicateKeyError, readIdempotencyKey } from "@/lib/idempotency";
 import { rateLimit } from "@/lib/rateLimit";
 import { parseIncidentQuery, validateIncidentInput } from "@/lib/validation";
 import Incident from "@/models/Incident";
 
+const replay = (existing) => Response.json(existing, { status: 200, headers: REPLAY_HEADERS });
+
+// With an Idempotency-Key header (sent by the offline queue) a repeat of the
+// same report returns the first one with status 200 instead of creating a
+// duplicate. See lib/idempotency.js.
 export async function POST(request) {
+  const idem = readIdempotencyKey(request);
+  if (idem.error) return errorResponse(400, idem.error);
+  const clientId = idem.key ? clientIdFor("incident", idem.key) : undefined;
+
+  if (clientId) {
+    // Answered before the rate limit: the first request was already counted,
+    // and the sender must be able to learn that it went through.
+    await connectDB();
+    await ensureIndexes(Incident);
+    const existing = await Incident.findOne({ clientId }).lean();
+    if (existing) return replay(existing);
+  }
+
   const limited = rateLimit(request, "incidents");
   if (limited) return limited;
 
@@ -20,7 +40,17 @@ export async function POST(request) {
   const user = await getCurrentUser();
 
   await connectDB();
-  const incident = await Incident.create({ ...data, reportedBy: user?._id });
+  let incident;
+  try {
+    incident = await Incident.create({ ...data, reportedBy: user?._id, clientId });
+  } catch (err) {
+    // Two copies of the same request raced; the unique index let one through.
+    if (clientId && isDuplicateKeyError(err)) {
+      const existing = await Incident.findOne({ clientId }).lean();
+      if (existing) return replay(existing);
+    }
+    throw err;
+  }
   return Response.json(incident, { status: 201 });
 }
 

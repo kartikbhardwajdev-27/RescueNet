@@ -10,38 +10,58 @@
 //   "not_found"     HTTP 404
 //   "server"        anything else
 //   "aborted"       the caller cancelled (GET helpers only)
-// `message` is ready to show to the user.
+// `message` is ready to show to the user. Failures also carry `status` (the HTTP
+// status, 0 when the server was not reached) and `retryAfter` (seconds, from the
+// Retry-After header of a 429, else 0), which the offline outbox uses to decide
+// whether trying again later makes sense (lib/outboxRules.js).
 
 const EMERGENCY_HINT = "If you're in danger, call your local emergency number.";
+
+// Some SOS messages end with the emergency-number reminder. Screens that already
+// show that reminder elsewhere use this to avoid saying it twice.
+export const withoutEmergencyHint = (message) => String(message).replace(EMERGENCY_HINT, "").trim();
 const GENERIC_ERROR = "Something went wrong. Please try again.";
 
-async function sendJson(method, path, body) {
+// `headers` are added to the JSON content type. `timeoutMs` turns a request that
+// hangs (a phone that wandered out of WiFi range can wait a very long time) into
+// a "network" failure instead of leaving the screen waiting.
+async function sendJson(method, path, body, { headers, timeoutMs } = {}) {
+  const controller = timeoutMs ? new AbortController() : null;
+  const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
   try {
     const res = await fetch(path, {
       method,
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...headers },
       body: JSON.stringify(body),
+      signal: controller?.signal,
     });
-    return { status: res.status, ok: res.ok, data: await res.json().catch(() => null) };
+    const data = await res.json().catch(() => null);
+    // A success whose body never arrived (the timeout fired mid-read) is "we
+    // did not hear back", not a success: callers read the body.
+    if (res.ok && data === null) return { network: true };
+    return { status: res.status, ok: res.ok, data, retryAfter: Number(res.headers.get("Retry-After")) || 0 };
   } catch {
     return { network: true };
+  } finally {
+    clearTimeout(timer);
   }
 }
 
-const postJson = (path, body) => sendJson("POST", path, body);
-const patchJson = (path, body) => sendJson("PATCH", path, body);
+const postJson = (path, body, options) => sendJson("POST", path, body, options);
+const patchJson = (path, body, options) => sendJson("PATCH", path, body, options);
 
 function failure(response, messages) {
   const serverMessage = response.data?.error;
-  if (response.network) return { ok: false, kind: "network", message: messages.network, errors: {} };
-  if (response.status === 429) return { ok: false, kind: "rate_limit", message: messages.rateLimit, errors: {} };
+  const base = { ok: false, status: response.status ?? 0, retryAfter: response.retryAfter ?? 0 };
+  if (response.network) return { ...base, kind: "network", message: messages.network, errors: {} };
+  if (response.status === 429) return { ...base, kind: "rate_limit", message: messages.rateLimit, errors: {} };
   if (response.status === 400) {
-    return { ok: false, kind: "validation", message: serverMessage ?? messages.server, errors: response.data?.errors ?? {} };
+    return { ...base, kind: "validation", message: serverMessage ?? messages.server, errors: response.data?.errors ?? {} };
   }
-  if (response.status === 401) return { ok: false, kind: "unauthorized", message: serverMessage ?? messages.server, errors: {} };
-  if (response.status === 403) return { ok: false, kind: "forbidden", message: serverMessage ?? messages.server, errors: {} };
-  if (response.status === 404) return { ok: false, kind: "not_found", message: serverMessage ?? messages.server, errors: {} };
-  return { ok: false, kind: "server", message: messages.server, errors: {} };
+  if (response.status === 401) return { ...base, kind: "unauthorized", message: serverMessage ?? messages.server, errors: {} };
+  if (response.status === 403) return { ...base, kind: "forbidden", message: serverMessage ?? messages.server, errors: {} };
+  if (response.status === 404) return { ...base, kind: "not_found", message: serverMessage ?? messages.server, errors: {} };
+  return { ...base, kind: "server", message: messages.server, errors: {} };
 }
 
 // The short code shown to people so they can quote a report or alert.
@@ -51,9 +71,17 @@ export function incidentReference(id) {
 
 // ---- incidents and SOS ----
 
+// Both take an optional second argument { idempotencyKey, timeoutMs }. With a
+// key the server treats a repeat of the same request as the same report (see
+// lib/idempotency.js), which is what makes it safe to retry from the outbox.
+const withKey = ({ idempotencyKey, timeoutMs } = {}) => ({
+  headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : undefined,
+  timeoutMs,
+});
+
 // payload: { type, severity, description, location: { lng, lat }, address? }
-export async function createIncident(payload) {
-  const response = await postJson("/api/incidents", payload);
+export async function createIncident(payload, options) {
+  const response = await postJson("/api/incidents", payload, withKey(options));
   if (response.ok) return { ok: true, incident: response.data };
   return failure(response, {
     network: "Couldn't reach the server",
@@ -63,8 +91,8 @@ export async function createIncident(payload) {
 }
 
 // location: { lng, lat }
-export async function sendSos(location) {
-  const response = await postJson("/api/sos", { location: { lng: location.lng, lat: location.lat } });
+export async function sendSos(location, options) {
+  const response = await postJson("/api/sos", { location: { lng: location.lng, lat: location.lat } }, withKey(options));
   if (response.ok) return { ok: true, id: response.data.id };
   return failure(response, {
     network: `Couldn't reach the server. ${EMERGENCY_HINT}`,

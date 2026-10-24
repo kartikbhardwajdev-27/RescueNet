@@ -1,15 +1,22 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { CircleAlert, LoaderCircle, Siren } from "lucide-react";
+import { CircleAlert, Clock, LoaderCircle, Siren } from "lucide-react";
+import { withoutEmergencyHint } from "@/lib/api";
 
 // phase: "idle" | "locating" | "sending". Cancel stays available while locating
 // (it aborts the attempt) but not while sending, because a sent alert can't be
 // taken back.
-export default function SosModal({ open, phase = "idle", error = "", note = "", onClose, onConfirm }) {
+//
+// `queued` is the saved-but-not-yet-delivered SOS from the offline outbox, if
+// there is one. While it waits, the modal says so instead of offering to send
+// another alert for the same emergency.
+export default function SosModal({ open, phase = "idle", error = "", note = "", queued = null, onClose, onConfirm }) {
   const dialogRef = useRef(null);
   const confirmRef = useRef(null);
   const busy = phase !== "idle";
+  // While an attempt is running the item is "sending"; that is not "queued" yet.
+  const showQueued = Boolean(queued) && !busy;
 
   // Native <dialog> gives us the focus trap, Esc handling and inert background.
   useEffect(() => {
@@ -53,7 +60,7 @@ export default function SosModal({ open, phase = "idle", error = "", note = "", 
               Emergency SOS
             </h2>
             <p id="sos-description" className="mt-1.5 text-ink-muted">
-              Are you sure you want to send an emergency alert?
+              {showQueued ? "Your alert is saved on this device." : "Are you sure you want to send an emergency alert?"}
             </p>
           </div>
         </div>
@@ -74,6 +81,20 @@ export default function SosModal({ open, phase = "idle", error = "", note = "", 
           {note && <p className="text-sm text-ink-muted">{note}</p>}
         </div>
 
+        {showQueued && (
+          <div role="status" className="mt-5 rounded-2xl border border-warn/40 bg-warn/10 px-4 py-3 text-sm">
+            <p className="flex items-start gap-2.5 font-semibold">
+              <Clock className="mt-0.5 size-5 shrink-0 text-warn" aria-hidden="true" />
+              SOS queued. It will be sent when the connection returns.
+            </p>
+            <p className="mt-2 pl-7 text-ink-muted">
+              It sends by itself while RescueNet stays open on this device. If you are in danger, call your local
+              emergency number now.
+            </p>
+            {queued.lastError && <p className="mt-2 pl-7 text-xs text-ink-muted">Last try: {withoutEmergencyHint(queued.lastError)}</p>}
+          </div>
+        )}
+
         {error && (
           <p
             role="alert"
@@ -91,19 +112,21 @@ export default function SosModal({ open, phase = "idle", error = "", note = "", 
             disabled={phase === "sending"}
             className="rounded-2xl border border-line-strong bg-white/5 px-5 py-3 text-sm font-semibold text-ink transition-all duration-150 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60 motion-safe:active:scale-95"
           >
-            Cancel
+            {showQueued ? "Close" : "Cancel"}
           </button>
-          <button
-            ref={confirmRef}
-            type="button"
-            onClick={onConfirm}
-            disabled={busy}
-            aria-busy={busy}
-            className="flex items-center gap-2 rounded-2xl bg-sos px-6 py-3 text-sm font-bold text-white shadow-sos transition-all duration-150 hover:bg-sos-hover disabled:cursor-not-allowed disabled:opacity-80 disabled:hover:bg-sos motion-safe:active:scale-95"
-          >
-            {busy && <LoaderCircle className="size-4 motion-safe:animate-spin" aria-hidden="true" />}
-            {confirmLabel}
-          </button>
+          {!showQueued && (
+            <button
+              ref={confirmRef}
+              type="button"
+              onClick={onConfirm}
+              disabled={busy}
+              aria-busy={busy}
+              className="flex items-center gap-2 rounded-2xl bg-sos px-6 py-3 text-sm font-bold text-white shadow-sos transition-all duration-150 hover:bg-sos-hover disabled:cursor-not-allowed disabled:opacity-80 disabled:hover:bg-sos motion-safe:active:scale-95"
+            >
+              {busy && <LoaderCircle className="size-4 motion-safe:animate-spin" aria-hidden="true" />}
+              {confirmLabel}
+            </button>
+          )}
         </div>
       </div>
     </dialog>
