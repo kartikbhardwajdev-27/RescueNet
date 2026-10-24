@@ -194,8 +194,8 @@ builds (`ServiceWorkerRegister`). **In development it is removed instead**, so a
 worker left over from a production run on the same address (for example
 `localhost:3000`) can never serve stale code to `npm run dev`.
 
-- **Saved when it installs:** the 9 pages (`/`, `/map`, `/report`, `/shelters`,
-  `/resources`, `/about`, `/login`, `/register`, `/account`), the icons, the
+- **Saved when it installs:** the 10 pages (`/`, `/map`, `/report`, `/shelters`,
+  `/events`, `/resources`, `/about`, `/login`, `/register`, `/account`), the icons, the
   manifest, `/offline.html`, and **every script, style, font and the map worker
   those pages need**. The map loads its code on demand, so the worker reads each
   saved file for the names of further files and saves those too, until nothing new
@@ -276,3 +276,8 @@ saved account location.)
   was accepted). A queued item that hits the limit waits the time the server asks
   for. Left for the security pass.
 - Items made on one device cannot be viewed from another.
+- Only reports and SOS are queued for later. Everything else that changes data
+  (joining or leaving an event, creating or cancelling one, changing an incident's
+  status, shelters) needs the server at that moment and shows an error if it
+  cannot be reached. The Events page itself opens offline (it is saved like the
+  others) but its list needs the server.

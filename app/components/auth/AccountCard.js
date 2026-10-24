@@ -3,6 +3,7 @@
 import { LoaderCircle, LogOut, Mail, MapPin, Phone, WifiOff } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import Card from "@/components/Card";
+import MyEvents from "@/components/events/MyEvents";
 import MyReports from "@/components/incidents/MyReports";
 import OutboxList from "@/components/outbox/OutboxList";
 import Avatar from "./Avatar";
@@ -123,6 +124,7 @@ export default function AccountCard() {
         </div>
       </Card>
       <MyReports />
+      <MyEvents />
       <OutboxList />
     </>
   );

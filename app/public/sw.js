@@ -29,7 +29,7 @@ const ASSETS_CACHE = `rescuenet-assets-${VERSION}`;
 const CURRENT_CACHES = [PAGES_CACHE, ASSETS_CACHE];
 
 // Pages saved when the worker installs (the ones with no login-only content).
-const PRECACHE_PAGES = ["/", "/map", "/report", "/shelters", "/resources", "/about", "/login", "/register", "/account"];
+const PRECACHE_PAGES = ["/", "/map", "/report", "/shelters", "/events", "/resources", "/about", "/login", "/register", "/account"];
 const OFFLINE_PAGE = "/offline.html";
 const PRECACHE_ASSETS = [
   OFFLINE_PAGE,

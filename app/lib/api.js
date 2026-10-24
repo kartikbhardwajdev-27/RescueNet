@@ -8,6 +8,9 @@
 //   "unauthorized"  HTTP 401
 //   "forbidden"     HTTP 403
 //   "not_found"     HTTP 404
+//   "conflict"      HTTP 409: the request was fine but the current state refuses
+//                   it (an event is full, already joined, cancelled ...); the
+//                   server's own explanation is in `message`
 //   "server"        anything else
 //   "bad_request"   HTTP 400 on a read (for example a malformed id in the address)
 //   "aborted"       the caller cancelled (GET helpers only)
@@ -50,6 +53,7 @@ async function sendJson(method, path, body, { headers, timeoutMs } = {}) {
 
 const postJson = (path, body, options) => sendJson("POST", path, body, options);
 const patchJson = (path, body, options) => sendJson("PATCH", path, body, options);
+const deleteJson = (path, options) => sendJson("DELETE", path, undefined, options);
 
 function failure(response, messages) {
   const serverMessage = response.data?.error;
@@ -62,6 +66,7 @@ function failure(response, messages) {
   if (response.status === 401) return { ...base, kind: "unauthorized", message: serverMessage ?? messages.server, errors: {} };
   if (response.status === 403) return { ...base, kind: "forbidden", message: serverMessage ?? messages.server, errors: {} };
   if (response.status === 404) return { ...base, kind: "not_found", message: serverMessage ?? messages.server, errors: {} };
+  if (response.status === 409) return { ...base, kind: "conflict", message: serverMessage ?? messages.server, errors: response.data?.errors ?? {} };
   return { ...base, kind: "server", message: messages.server, errors: {} };
 }
 
@@ -123,6 +128,44 @@ export async function updateIncidentStatus(id, status) {
   });
 }
 
+// ---- events ----
+
+const EVENT_MESSAGES = {
+  network: "Couldn't reach the server",
+  rateLimit: "Too many requests, try again shortly",
+  server: GENERIC_ERROR,
+};
+
+// Organizations only (the server checks).
+// payload: { title, description, type, address, location: { lng, lat },
+//            startsAt (ISO 8601), endsAt?, capacity? }
+export async function createEvent(payload) {
+  const response = await postJson("/api/events", payload);
+  if (response.ok) return { ok: true, event: response.data };
+  return failure(response, EVENT_MESSAGES);
+}
+
+// Cancel an event you posted (the record stays, marked cancelled).
+export async function cancelEvent(id) {
+  const response = await deleteJson(`/api/events/${encodeURIComponent(id)}`);
+  if (response.ok) return { ok: true, event: response.data };
+  return failure(response, EVENT_MESSAGES);
+}
+
+// Join / leave an event (logged-in people). A full, finished or cancelled event,
+// or one you already joined, comes back as kind "conflict" with the reason.
+export async function joinEvent(id) {
+  const response = await postJson(`/api/events/${encodeURIComponent(id)}/rsvp`);
+  if (response.ok) return { ok: true, event: response.data };
+  return failure(response, EVENT_MESSAGES);
+}
+
+export async function leaveEvent(id) {
+  const response = await deleteJson(`/api/events/${encodeURIComponent(id)}/rsvp`);
+  if (response.ok) return { ok: true, event: response.data };
+  return failure(response, EVENT_MESSAGES);
+}
+
 // ---- shelters (organizations only) ----
 
 // payload: { name, address, location: { lng, lat }, capacity, occupied?, status?, contactPhone? }
@@ -169,6 +212,9 @@ async function getJson(path, { signal } = {}) {
 export const fetchStats = (options) => getJson("/api/stats", options);
 export const fetchIncident = (id, options) => getJson(`/api/incidents/${encodeURIComponent(id)}`, options);
 // The logged-in person's own reports (401 when logged out).
+export const fetchEvents = (options) => getJson("/api/events?limit=200", options);
+// { hosting, joined } for the logged-in person (401 when logged out).
+export const fetchMyEvents = (options) => getJson("/api/events/mine?limit=200", options);
 export const fetchMyIncidents = (options) => getJson("/api/incidents?mine=true&limit=200", options);
 export const fetchIncidents = (options) => getJson("/api/incidents?limit=200", options);
 export const fetchShelters = (options) => getJson("/api/shelters?limit=200", options);

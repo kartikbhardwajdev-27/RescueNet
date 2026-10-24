@@ -21,6 +21,17 @@ import {
   PHONE_PATTERN,
   SHELTER_STATUSES,
 } from "@/lib/shelterRules";
+import {
+  EVENT_START_GRACE_MS,
+  EVENT_TYPES,
+  MAX_EVENT_ADDRESS_LENGTH,
+  MAX_EVENT_CAPACITY,
+  MAX_EVENT_DESCRIPTION_LENGTH,
+  MAX_EVENT_DURATION_MS,
+  MAX_EVENT_START_AHEAD_MS,
+  MAX_EVENT_TITLE_LENGTH,
+} from "@/lib/eventRules";
+import { parseIsoDateTime } from "@/lib/isoDate";
 import { isLngLat } from "@/models/geoPoint";
 
 // The login route imports these from here.
@@ -417,4 +428,188 @@ export function validateShelterUpdate(body) {
   }
 
   return { errors, updates };
+}
+
+// ---------------------------------------------------------------------------
+// Events
+// ---------------------------------------------------------------------------
+
+const UPDATABLE_EVENT_FIELDS = ["title", "description", "type", "address", "location", "startsAt", "endsAt", "capacity"];
+const TIME_HINT = "a real date and time with a time zone, like 2026-11-02T10:00:00Z";
+
+// Required text: present, a string, not blank, not too long. Too long is an
+// error rather than a silent cut, because a title is something a person reads.
+function readRequiredText(value, label, max) {
+  if (typeof value !== "string" || value.trim() === "") return { error: `${label} is required` };
+  const text = value.trim();
+  if (text.length > max) return { error: `${label} must be at most ${max} characters` };
+  return { value: text };
+}
+
+// A start time: a real date-time that is not already over (a few minutes of
+// grace for a form left open) and not absurdly far ahead.
+function readEventStart(value, nowMs) {
+  if (value == null) return { error: "Start time is required" };
+  const ms = parseIsoDateTime(value);
+  if (Number.isNaN(ms)) return { error: `Start time must be ${TIME_HINT}` };
+  if (ms < nowMs - EVENT_START_GRACE_MS) return { error: "Start time can't be in the past" };
+  if (ms > nowMs + MAX_EVENT_START_AHEAD_MS) return { error: "Start time can't be more than 2 years ahead" };
+  return { value: new Date(ms) };
+}
+
+function readEventEnd(value, startMs) {
+  const ms = parseIsoDateTime(value);
+  if (Number.isNaN(ms)) return { error: `End time must be ${TIME_HINT}` };
+  if (ms <= startMs) return { error: "End time must be after the start time" };
+  if (ms - startMs > MAX_EVENT_DURATION_MS) return { error: "An event can last at most 30 days" };
+  return { value: new Date(ms) };
+}
+
+const capacityError = `Capacity must be a whole number from 1 to ${MAX_EVENT_CAPACITY}`;
+
+// POST /api/events body -> { errors, data }. Only whitelisted fields are read,
+// so a body can't set organizer, attendees or status.
+export function validateEventInput(body, nowMs = Date.now()) {
+  const errors = {};
+  const data = {};
+
+  const title = readRequiredText(body.title, "Title", MAX_EVENT_TITLE_LENGTH);
+  if (title.error) errors.title = title.error;
+  else data.title = title.value;
+
+  const description = readRequiredText(body.description, "Description", MAX_EVENT_DESCRIPTION_LENGTH);
+  if (description.error) errors.description = description.error;
+  else data.description = description.value;
+
+  if (body.type == null) errors.type = `Type is required (one of: ${EVENT_TYPES.join(", ")})`;
+  else if (!EVENT_TYPES.includes(body.type)) errors.type = `Type must be one of: ${EVENT_TYPES.join(", ")}`;
+  else data.type = body.type;
+
+  const address = readRequiredText(body.address, "Address", MAX_EVENT_ADDRESS_LENGTH);
+  if (address.error) errors.address = address.error;
+  else data.address = address.value;
+
+  const location = parseLocation(body.location);
+  if (location.error) errors.location = location.error;
+  else data.location = location.value;
+
+  const start = readEventStart(body.startsAt, nowMs);
+  if (start.error) errors.startsAt = start.error;
+  else data.startsAt = start.value;
+
+  if (body.endsAt != null) {
+    if (!data.startsAt) {
+      // Without a valid start there is nothing to compare with; say what we can.
+      if (Number.isNaN(parseIsoDateTime(body.endsAt))) errors.endsAt = `End time must be ${TIME_HINT}`;
+    } else {
+      const end = readEventEnd(body.endsAt, data.startsAt.getTime());
+      if (end.error) errors.endsAt = end.error;
+      else data.endsAt = end.value;
+    }
+  }
+
+  if (body.capacity != null) {
+    if (isWholeNumber(body.capacity, 1, MAX_EVENT_CAPACITY)) data.capacity = body.capacity;
+    else errors.capacity = capacityError;
+  }
+
+  return { errors, data };
+}
+
+// PATCH /api/events/[id] body -> { errors, updates }. `existing` is the stored
+// event's { startsAt, endsAt }, needed to check the two times against each other.
+// Only the fields in UPDATABLE_EVENT_FIELDS may be sent; `endsAt: null` and
+// `capacity: null` remove the end time / the limit (they come back as null in
+// `updates`). Checks that need the attendee list (capacity vs people already
+// joined) are left to the route, which does them atomically.
+export function validateEventUpdate(body, existing, nowMs = Date.now()) {
+  const errors = {};
+  const updates = {};
+
+  const extra = Object.keys(body).filter((key) => !UPDATABLE_EVENT_FIELDS.includes(key));
+  if (extra.length > 0) {
+    errors.body = `Only ${UPDATABLE_EVENT_FIELDS.join(", ")} can be updated (not: ${extra.join(", ")})`;
+    return { errors, updates };
+  }
+  if (!UPDATABLE_EVENT_FIELDS.some((key) => body[key] !== undefined)) {
+    errors.body = `Send at least one of: ${UPDATABLE_EVENT_FIELDS.join(", ")}`;
+    return { errors, updates };
+  }
+
+  for (const [key, label, max] of [
+    ["title", "Title", MAX_EVENT_TITLE_LENGTH],
+    ["description", "Description", MAX_EVENT_DESCRIPTION_LENGTH],
+    ["address", "Address", MAX_EVENT_ADDRESS_LENGTH],
+  ]) {
+    if (body[key] === undefined) continue;
+    const text = readRequiredText(body[key], label, max);
+    if (text.error) errors[key] = text.error;
+    else updates[key] = text.value;
+  }
+
+  if (body.type !== undefined) {
+    if (EVENT_TYPES.includes(body.type)) updates.type = body.type;
+    else errors.type = `Type must be one of: ${EVENT_TYPES.join(", ")}`;
+  }
+
+  if (body.location !== undefined) {
+    const location = parseLocation(body.location);
+    if (location.error) errors.location = location.error;
+    else updates.location = location.value;
+  }
+
+  if (body.startsAt !== undefined) {
+    const start = readEventStart(body.startsAt, nowMs);
+    if (start.error) errors.startsAt = start.error;
+    else updates.startsAt = start.value;
+  }
+
+  // The end is judged against the start the event will have after this update.
+  const startMs = (updates.startsAt ?? new Date(existing.startsAt)).getTime();
+  if (body.endsAt === null) {
+    updates.endsAt = null;
+  } else if (body.endsAt !== undefined) {
+    const end = readEventEnd(body.endsAt, startMs);
+    if (end.error) errors.endsAt = end.error;
+    else updates.endsAt = end.value;
+  } else if (updates.startsAt && existing.endsAt) {
+    // Moving the start must not leave the old end time before it.
+    const end = readEventEnd(new Date(existing.endsAt).getTime(), startMs);
+    if (end.error) errors.endsAt = `${end.error} (change or remove the end time too)`;
+  }
+
+  if (body.capacity === null) updates.capacity = null;
+  else if (body.capacity !== undefined) {
+    if (isWholeNumber(body.capacity, 1, MAX_EVENT_CAPACITY)) updates.capacity = body.capacity;
+    else errors.capacity = capacityError;
+  }
+
+  return { errors, updates };
+}
+
+// GET /api/events query string -> { errors, filter, limit, when }.
+//   type            one event type
+//   near=lng,lat    only events within radiusKm (default 10) of that point
+//   when            "upcoming" (the default: not over yet), "past" or "all"
+// Cancelled events are never in this list (the route adds that); the caller
+// builds the time condition from `when`.
+export function parseEventQuery(params) {
+  const errors = {};
+  const filter = {};
+
+  readEnumFilters(params, errors, filter, [["type", EVENT_TYPES]]);
+  const limit = readLimit(params, errors);
+  const near = readNear(params, errors);
+  if (near) {
+    filter.location = { $geoWithin: { $centerSphere: [[near.lng, near.lat], near.radiusKm / EARTH_RADIUS_KM] } };
+  }
+
+  let when = "upcoming";
+  const rawWhen = params.get("when");
+  if (rawWhen !== null) {
+    if (["upcoming", "past", "all"].includes(rawWhen)) when = rawWhen;
+    else errors.when = "when must be one of: upcoming, past, all";
+  }
+
+  return { errors, filter, limit, when };
 }

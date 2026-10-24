@@ -1,5 +1,6 @@
 import {
   BedDouble,
+  CalendarDays,
   CircleCheck,
   FilePlus,
   HeartHandshake,
@@ -15,6 +16,7 @@ import {
 // Data refers to icons by key, so API data never needs to know about React.
 const ICONS = {
   "bed-double": BedDouble,
+  "calendar-days": CalendarDays,
   "circle-check": CircleCheck,
   "file-plus": FilePlus,
   "heart-handshake": HeartHandshake,
