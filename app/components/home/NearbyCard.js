@@ -3,7 +3,8 @@
 import { useMemo } from "react";
 import Link from "next/link";
 import Card from "@/components/Card";
-import { incidentTypeMeta } from "@/components/incidentMeta";
+import SosBadge from "@/components/incidents/SosBadge";
+import { incidentKindMeta } from "@/components/incidentMeta";
 import { buildNearbyItems, capitalize } from "@/lib/dashboard";
 import { formatDistance } from "@/lib/geo";
 import { incidentHref } from "@/lib/incidentLinks";
@@ -34,11 +35,16 @@ function describe(item, now) {
     };
   }
 
-  const { label, icon: TypeIcon } = incidentTypeMeta(record.type);
+  const { label, icon: TypeIcon, isSos } = incidentKindMeta(record);
   return {
     icon: <TypeIcon className="size-5" aria-hidden="true" />,
     tone: "red",
+    // `title` is the plain text (used for the button's accessible name);
+    // `heading` is what is drawn. For an SOS the red badge stands where "Other"
+    // would be: "[SOS] Alert · Critical".
     title: `${label} · ${capitalize(record.severity)}`,
+    heading: `${isSos ? "Alert" : label} · ${capitalize(record.severity)}`,
+    sos: isSos,
     detail: [away ?? formatRelativeTime(incidentTime(record), now), record.address || record.description].join(" · "),
     action: { label: "Details", href: incidentHref(record._id) },
   };
@@ -85,7 +91,10 @@ export default function NearbyCard({ shelters, incidents, place, className = "" 
                 <li key={`${item.kind}-${item.id}`} data-kind={item.kind} data-id={item.id} className="flex items-center gap-3 rounded-2xl border border-line bg-white/5 p-3">
                   <span className={`flex size-11 shrink-0 items-center justify-center rounded-xl ${toneClasses(view.tone).badge}`}>{view.icon}</span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold">{view.title}</p>
+                    <p className="flex flex-wrap items-center gap-2 text-sm font-semibold">
+                      {view.sos && <SosBadge />}
+                      {view.heading ?? view.title}
+                    </p>
                     <p className="text-xs text-ink-muted">{view.detail}</p>
                   </div>
                   <Link

@@ -49,6 +49,7 @@ export async function POST(request) {
       type: "other",
       severity: "critical",
       status: "reported",
+      isSos: true,
       description: data.message ? `SOS alert: ${data.message}` : "SOS alert",
       location: data.location,
       capturedAt: data.capturedAt,

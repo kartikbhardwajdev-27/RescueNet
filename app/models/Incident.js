@@ -12,6 +12,14 @@ const incidentSchema = new mongoose.Schema(
     address: { type: String, trim: true },
     severity: { type: String, enum: INCIDENT_SEVERITIES, default: "medium" },
     status: { type: String, enum: INCIDENT_STATUSES, default: "reported" },
+    // true only for alerts made with the SOS button, false for ordinary reports.
+    // Set explicitly by POST /api/sos and POST /api/incidents, never by anything
+    // a client sends. Deliberately NO schema default: Mongoose applies a default
+    // to an old document that lacks the field the moment it is loaded, which
+    // would turn every alert saved before this field existed into "not an SOS".
+    // A missing field is how old alerts are recognised (see isSosIncident in
+    // lib/incidentRules.js).
+    isSos: { type: Boolean },
     // Optional so anonymous reports are allowed.
     reportedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     // When the person actually submitted it, as reported by their device. Absent

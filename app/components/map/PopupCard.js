@@ -1,6 +1,7 @@
 import { Clock, HousePlus, MapPin, Phone, X } from "lucide-react";
 import { toneClasses } from "@/components/home/tones";
-import { incidentTypeMeta } from "@/components/incidentMeta";
+import SosBadge from "@/components/incidents/SosBadge";
+import { incidentKindMeta } from "@/components/incidentMeta";
 import CapacityBar from "@/components/shelters/CapacityBar";
 import { SHELTER_STATUS_META } from "@/components/shelters/statusMeta";
 import { formatRelativeTime, incidentTime } from "@/lib/time";
@@ -31,7 +32,7 @@ function Header({ icon, tone, title, pills, onClose }) {
 }
 
 function IncidentDetails({ incident, now, onClose }) {
-  const { label: typeLabel, icon: TypeIcon } = incidentTypeMeta(incident.type);
+  const { label: typeLabel, icon: TypeIcon, isSos } = incidentKindMeta(incident);
   const severity = severityMeta(incident.severity);
   const status = incidentStatusMeta(incident.status);
 
@@ -40,7 +41,16 @@ function IncidentDetails({ incident, now, onClose }) {
       <Header
         icon={<TypeIcon className="size-5" aria-hidden="true" />}
         tone={severity.tone}
-        title={typeLabel}
+        title={
+          isSos ? (
+            <span className="flex items-center gap-2">
+              <SosBadge />
+              Alert
+            </span>
+          ) : (
+            typeLabel
+          )
+        }
         onClose={onClose}
         pills={
           <>

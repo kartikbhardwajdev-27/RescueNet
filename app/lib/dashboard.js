@@ -1,5 +1,6 @@
 // Pure helpers that turn API records into what the Home dashboard shows.
 import { distanceKm } from "./geo";
+import { isSosIncident } from "./incidentRules";
 import { incidentTime } from "./time";
 
 const isActive = (incident) => incident.status !== "resolved";
@@ -45,10 +46,14 @@ export function buildActivityItems(incidents = [], { typeLabel, limit = 4 }) {
   return [...incidents].sort(newestFirst).slice(0, limit).map((incident) => {
     const status = ACTIVITY_STATUS[incident.status] ?? ACTIVITY_STATUS.reported;
     const place = incident.address || incident.description;
+    // An SOS alert is stored as type "other"; the screen shows a red SOS badge
+    // in front of "Alert reported" instead of "Other reported".
+    const isSos = isSosIncident(incident);
     return {
       id: incident._id,
+      isSos,
       tone: status.tone,
-      title: `${typeLabel(incident.type)} ${status.suffix}`,
+      title: `${isSos ? "Alert" : typeLabel(incident.type)} ${status.suffix}`,
       detail: `${capitalize(incident.severity)} severity · ${place.length > 60 ? `${place.slice(0, 57)}…` : place}`,
       time: incidentTime(incident),
     };

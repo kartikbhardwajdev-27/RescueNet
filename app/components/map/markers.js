@@ -1,4 +1,5 @@
-import { incidentTypeMeta } from "@/components/incidentMeta";
+import { incidentKindMeta } from "@/components/incidentMeta";
+import { isSosIncident } from "@/lib/incidentRules";
 import { SHELTER_STATUS_META } from "@/components/shelters/statusMeta";
 import { incidentStatusMeta, severityMeta } from "./mapMeta";
 
@@ -40,16 +41,17 @@ export const pointOf = (record) => record.location.coordinates;
 export function markerSignature(kind, record) {
   const [lng, lat] = pointOf(record);
   return kind === "incident"
-    ? `${record.severity}|${record.status}|${record.type}|${lng},${lat}`
+    ? `${record.severity}|${record.status}|${record.type}|${isSosIncident(record)}|${lng},${lat}`
     : `${record.status}|${record.name}|${lng},${lat}`;
 }
 
 export function createIncidentMarker(incident) {
   const { tone, label: severity } = severityMeta(incident.severity);
-  const type = incidentTypeMeta(incident.type).label;
+  const kind = incidentKindMeta(incident);
   const status = incidentStatusMeta(incident.status).label.toLowerCase();
 
-  const el = markerButton("incident", tone, `${type} incident, ${severity.toLowerCase()} severity, ${status}`);
+  const what = kind.isSos ? "SOS alert" : `${kind.label} incident`;
+  const el = markerButton("incident", tone, `${what}, ${severity.toLowerCase()} severity, ${status}`);
   el.style.zIndex = String(SEVERITY_Z[incident.severity] ?? 2);
   if (incident.severity === "critical") el.append(span("rn-pulse"));
   el.append(span("rn-dot", "!"));

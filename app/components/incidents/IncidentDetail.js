@@ -8,13 +8,14 @@ import { ArrowLeft, CalendarClock, CircleCheck, Hash, Map as MapIcon, MapPin, Pl
 import { useAuth } from "@/components/AuthProvider";
 import Card from "@/components/Card";
 import { ErrorState, Skeleton } from "@/components/home/states";
-import { incidentTypeMeta } from "@/components/incidentMeta";
+import { incidentKindMeta } from "@/components/incidentMeta";
 import { useToast } from "@/components/SosProvider";
 import usePolledResource from "@/components/usePolledResource";
 import { fetchIncident, incidentReference, updateIncidentStatus } from "@/lib/api";
 import { mapHref } from "@/lib/mapFocus";
 import { formatRelativeTime, incidentTime } from "@/lib/time";
 import { SeverityBadge, StatusBadge } from "./IncidentBadges";
+import SosBadge from "./SosBadge";
 
 // MapLibre needs the browser, so the little map is loaded on demand.
 const IncidentMiniMap = dynamic(() => import("./IncidentMiniMap"), {
@@ -161,7 +162,7 @@ export default function IncidentDetail({ id }) {
     return <Loading />;
   }
 
-  const { label: typeLabel, icon: TypeIcon } = incidentTypeMeta(incident.type);
+  const { label: typeLabel, icon: TypeIcon, isSos } = incidentKindMeta(incident);
   const [lng, lat] = incident.location.coordinates;
   const now = resource.fetchedAt ?? 0;
   const shownAt = incidentTime(incident);
@@ -175,11 +176,23 @@ export default function IncidentDetail({ id }) {
       <BackButton />
       <Card lift={false} className="max-w-2xl">
         <div className="flex items-start gap-4">
-          <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-white/10">
+          <span
+            className={`flex size-12 shrink-0 items-center justify-center rounded-2xl ${isSos ? "bg-sos/20 text-sos-soft" : "bg-white/10"}`}
+          >
             <TypeIcon className="size-6" aria-hidden="true" />
           </span>
           <div className="min-w-0">
-            <h2 className="font-display text-2xl font-bold tracking-tight">{typeLabel}</h2>
+            <h2 className="flex flex-wrap items-center gap-2.5 font-display text-2xl font-bold tracking-tight">
+              {/* An SOS is stored as type "other"; the red badge stands where "Other" would read. */}
+              {isSos ? (
+                <>
+                  <SosBadge className="text-sm" />
+                  Alert
+                </>
+              ) : (
+                typeLabel
+              )}
+            </h2>
             <div className="mt-2 flex flex-wrap gap-2">
               <SeverityBadge severity={incident.severity} />
               <StatusBadge status={incident.status} />

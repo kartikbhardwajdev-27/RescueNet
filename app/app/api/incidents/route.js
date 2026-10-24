@@ -42,7 +42,9 @@ export async function POST(request) {
   await connectDB();
   let incident;
   try {
-    incident = await Incident.create({ ...data, reportedBy: user?._id, clientId });
+    // isSos is set here, after the whitelisted data, so a request can never make
+    // an ordinary report an SOS.
+    incident = await Incident.create({ ...data, isSos: false, reportedBy: user?._id, clientId });
   } catch (err) {
     // Two copies of the same request raced; the unique index let one through.
     if (clientId && isDuplicateKeyError(err)) {

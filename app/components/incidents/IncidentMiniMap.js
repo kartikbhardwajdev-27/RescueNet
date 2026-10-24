@@ -9,6 +9,7 @@ import { buildStyle, insideCoverage } from "@/components/map/mapConfig";
 import { setupMapRuntime } from "@/components/map/mapRuntime";
 import { createIncidentMarker } from "@/components/map/markers";
 import { webglAvailable } from "@/components/map/webgl";
+import { isSosIncident } from "@/lib/incidentRules";
 
 // A small, fixed picture of where an incident is: the offline basemap with the
 // incident's own marker. Not draggable; the full map is one tap away. Client
@@ -19,6 +20,7 @@ export default function IncidentMiniMap({ incident }) {
 
   const [lng, lat] = incident.location.coordinates;
   const { severity, status, type } = incident;
+  const isSos = isSosIncident(incident);
 
   useEffect(() => {
     if (!webgl) return;
@@ -33,14 +35,14 @@ export default function IncidentMiniMap({ incident }) {
       attributionControl: { compact: true },
       renderWorldCopies: false,
     });
-    const element = createIncidentMarker({ severity, status, type });
+    const element = createIncidentMarker({ severity, status, type, isSos });
     element.tabIndex = -1; // decoration here, not a control
     const marker = new Marker({ element }).setLngLat([lng, lat]).addTo(map);
     return () => {
       marker.remove();
       map.remove();
     };
-  }, [webgl, lng, lat, severity, status, type]);
+  }, [webgl, lng, lat, severity, status, type, isSos]);
 
   return (
     <div className="rn-map relative h-56 overflow-hidden rounded-2xl border border-line bg-surface sm:h-72">

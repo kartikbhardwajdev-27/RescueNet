@@ -4,12 +4,13 @@ import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import Card from "@/components/Card";
 import { EmptyState, ErrorState, SkeletonRows } from "@/components/home/states";
-import { incidentTypeMeta } from "@/components/incidentMeta";
+import { incidentKindMeta } from "@/components/incidentMeta";
 import usePolledResource from "@/components/usePolledResource";
 import { fetchMyIncidents } from "@/lib/api";
 import { incidentHref } from "@/lib/incidentLinks";
 import { formatRelativeTime, incidentTime } from "@/lib/time";
 import { SeverityBadge, StatusBadge } from "./IncidentBadges";
+import SosBadge from "./SosBadge";
 
 const MAX_SHOWN = 10;
 
@@ -42,19 +43,28 @@ export default function MyReports() {
         {list.length > 0 && (
           <ul className="flex flex-col gap-1">
             {list.slice(0, MAX_SHOWN).map((incident) => {
-              const { label, icon: Icon } = incidentTypeMeta(incident.type);
+              const { label, icon: Icon, isSos } = incidentKindMeta(incident);
               return (
                 <li key={incident._id}>
                   <Link
                     href={incidentHref(incident._id)}
                     className="group -mx-2 flex items-center gap-3 rounded-2xl px-2 py-3 transition-colors hover:bg-white/5"
                   >
-                    <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white/10">
+                    <span
+                      className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${isSos ? "bg-sos/20 text-sos-soft" : "bg-white/10"}`}
+                    >
                       <Icon className="size-5" aria-hidden="true" />
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="flex flex-wrap items-center gap-2">
-                        <span className="font-semibold">{label}</span>
+                        {isSos ? (
+                          <span className="flex items-center gap-2 font-semibold">
+                            <SosBadge />
+                            Alert
+                          </span>
+                        ) : (
+                          <span className="font-semibold">{label}</span>
+                        )}
                         <StatusBadge status={incident.status} />
                         <SeverityBadge severity={incident.severity} />
                       </span>

@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import Link from "next/link";
 import Card from "@/components/Card";
+import SosBadge from "@/components/incidents/SosBadge";
 import { incidentTypeMeta } from "@/components/incidentMeta";
 import { buildActivityItems } from "@/lib/dashboard";
 import { incidentHref } from "@/lib/incidentLinks";
@@ -42,7 +43,10 @@ export default function ActivityCard({ incidents, className = "" }) {
                   href={incidentHref(item.id)}
                   className="-mx-2 -my-1 block rounded-xl px-2 py-1 transition-colors hover:bg-white/5"
                 >
-                  <p className="text-sm font-semibold">{item.title}</p>
+                  <p className="flex flex-wrap items-center gap-2 text-sm font-semibold">
+                    {item.isSos && <SosBadge />}
+                    {item.title}
+                  </p>
                   <p className="text-xs text-ink-muted">{item.detail}</p>
                   <p className="mt-0.5 text-xs font-medium text-ink-muted">
                     <time dateTime={item.time} title={new Date(item.time).toLocaleString()}>

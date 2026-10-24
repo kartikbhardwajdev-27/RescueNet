@@ -8,6 +8,28 @@ export const INCIDENT_STATUSES = ["reported", "in_progress", "resolved"];
 
 export const MAX_DESCRIPTION_LENGTH = 1000;
 
+// ---- SOS alerts ----
+//
+// POST /api/sos stores an incident with `isSos: true`; POST /api/incidents stores
+// `isSos: false`. Alerts saved before that field existed have no `isSos` at all,
+// but they have an unmistakable shape: /api/sos always wrote the type "other",
+// the severity "critical" and a description that starts with "SOS alert"
+// (optionally followed by ": <message>"). A normal report cannot be mistaken for
+// one: it is stored with `isSos: false`, and nothing a client sends can set the
+// flag.
+
+export const SOS_DESCRIPTION_PREFIX = "SOS alert";
+
+export function isSosIncident(incident) {
+  if (typeof incident.isSos === "boolean") return incident.isSos;
+  return (
+    incident.type === "other" &&
+    incident.severity === "critical" &&
+    typeof incident.description === "string" &&
+    incident.description.startsWith(SOS_DESCRIPTION_PREFIX)
+  );
+}
+
 // ---- capturedAt: when the person actually submitted a report ----
 //
 // A report or SOS made offline reaches the server later. The phone sends the
