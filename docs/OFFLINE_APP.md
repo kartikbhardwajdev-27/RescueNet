@@ -56,6 +56,18 @@ What that means in practice for a phone on plain `http://<laptop-ip>`:
   account has a saved location can still send an SOS (it uses the saved one). The
   report form still works: enter the coordinates by hand.
 
+**Logging in over plain http.** The login cookie used to be marked `Secure`
+whenever the app ran in production mode. A browser throws a `Secure` cookie away
+when it arrives over plain `http://<laptop-ip>`, so on a phone registering or
+logging in *looked* like it worked and the very next request was anonymous
+(verified with Chrome against the laptop's LAN address: `/api/auth/me` answered
+401). The cookie is now `Secure` only when the request really was https
+(`lib/auth.js`: the last `x-forwarded-proto` entry, which a reverse proxy adds, or
+`COOKIE_SECURE=true` in the environment to force it). Verified: logging in now
+works on `http://localhost` and on `http://<laptop-ip>`, and a request that says
+it was https still gets `Secure`. If you ever put RescueNet behind an https proxy
+that does not send `x-forwarded-proto`, set `COOKIE_SECURE=true`.
+
 ### Getting location and the service worker on a phone
 
 A phone needs a **secure origin**. Options, from simplest:
