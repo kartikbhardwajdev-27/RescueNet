@@ -29,6 +29,10 @@ const incidentSchema = new mongoose.Schema(
       score: { type: Number, min: 0, max: 100 },
       reasons: { type: [String], default: undefined },
     },
+    // true on the demo incidents made by `npm run demo:seed` (scripts/seed-demo.mjs).
+    // Never set by the API, only by that script; shown as a "Demo" tag. No default,
+    // like isSos, so ordinary incidents simply do not have the field.
+    seeded: { type: Boolean },
     // Optional so anonymous reports are allowed.
     reportedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     // When the person actually submitted it, as reported by their device. Absent

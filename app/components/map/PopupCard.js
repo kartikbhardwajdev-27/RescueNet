@@ -1,4 +1,5 @@
 import { Clock, HousePlus, MapPin, Phone, X } from "lucide-react";
+import DemoTag from "@/components/DemoTag";
 import { toneClasses } from "@/components/home/tones";
 import SosBadge from "@/components/incidents/SosBadge";
 import { incidentKindMeta } from "@/components/incidentMeta";
@@ -57,6 +58,7 @@ function IncidentDetails({ incident, now, onClose }) {
           <>
             <Pill tone={severity.tone}>{severity.label} severity</Pill>
             <Pill tone={status.tone}>{status.label}</Pill>
+            {incident.seeded && <DemoTag />}
           </>
         }
       />

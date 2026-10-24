@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, CalendarClock, CircleCheck, Hash, Lightbulb, Map as MapIcon, MapPin, Play, SearchX, UserRound } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import Card from "@/components/Card";
+import DemoTag from "@/components/DemoTag";
 import { ErrorState, Skeleton } from "@/components/home/states";
 import { incidentKindMeta } from "@/components/incidentMeta";
 import { useToast } from "@/components/SosProvider";
@@ -220,6 +221,7 @@ export default function IncidentDetail({ id }) {
             <div className="mt-2 flex flex-wrap gap-2">
               <SeverityBadge severity={incident.severity} />
               <StatusBadge status={incident.status} />
+              {incident.seeded && <DemoTag />}
               {isMine && (
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-info/15 px-2.5 py-1 text-xs font-bold text-info">
                   <UserRound className="size-3.5" aria-hidden="true" />

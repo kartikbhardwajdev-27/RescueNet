@@ -23,6 +23,8 @@ const userSchema = new mongoose.Schema(
     passwordHash: { type: String, required: true, select: false },
     role: { type: String, enum: USER_ROLES, default: "citizen" },
     location: { type: pointSchema },
+    // true on the two demo accounts made by `npm run demo:seed`. Never set by the API.
+    seeded: { type: Boolean },
     org: {
       orgName: {
         type: String,

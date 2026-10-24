@@ -25,6 +25,8 @@ const eventSchema = new mongoose.Schema(
     // "cancelled" is set by DELETE /api/events/[id]; the record is kept so the
     // people who joined can still see that it was cancelled.
     status: { type: String, enum: EVENT_STATUSES, default: "upcoming" },
+    // true on the demo events made by `npm run demo:seed`. Never set by the API.
+    seeded: { type: Boolean },
   },
   { timestamps: true },
 );
