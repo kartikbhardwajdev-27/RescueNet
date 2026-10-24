@@ -1,0 +1,137 @@
+# RescueNet build plan
+
+Instructions for the `rescuenet-builder` agent. Follow this file exactly. Steps 1 to 9 are already built. Do steps 10 to 18 in order, one at a time.
+
+## How to work
+
+1. Find the first unfinished step. Check `git log --oneline` (commits are named `Step N: ...`), `git status`, and the files. Never redo a finished step.
+2. If `git status` shows uncommitted Step 9 work (real data on Home and Shelters, `/api/shelters`, `/api/stats`, shelter seed script), commit it first as `Step 9: real data on Home and Shelters, stats API, shelter seed`, then continue.
+3. For each step: build it, run `npm run lint` and `npm run build`, verify it (curl for APIs, the browser tool if connected, otherwise say so), commit as `Step N: <name>`, push the `rebuild` branch.
+4. A step marked **CHECKPOINT** is different: build and verify it, then STOP. Tell Kartik exactly what to test by hand and wait for approval before you commit.
+5. Continue to the next step automatically only if the current step fully passed its verification. If a step fails twice, stop and report. Do not guess.
+6. When something is not specified, pick the simplest option and mention it in your report.
+7. After each step, report briefly: what you built, files changed, what you verified and how, what you could NOT verify, and anything Kartik must do by hand.
+8. After step 18, stop. Do not invent extra steps.
+
+## Standing rules
+
+- Branch: `rebuild`. Never push to `main`.
+- Edit only inside `app/` and `docs/` (the repo root `docs/`). Never touch `client/` or `server/`.
+- Never edit `.gitignore`. Never commit `.env.local`, secrets, or the `.pmtiles` map file.
+- Zero internet at runtime: no CDN, no Google Fonts, no external URLs, no analytics. Everything is bundled or served from this app.
+- UI style: dark theme, existing brand gradient, rounded cards, Space Grotesk and Inter (already bundled), `lucide-react` icons only.
+- Colour meaning: red = emergency and SOS only, green = safe and shelter, amber = warning, blue = information.
+- Commit messages have no `Co-Authored-By` line.
+- Do not kill or restart Kartik's dev server on port 3000. Test on another port. Never touch his real account or his test incidents. Clean up any test data you create. Keep the seeded demo shelters.
+- Local MongoDB at `127.0.0.1:27017/rescuenet`. Any script that writes data must refuse to run against a non-local URI.
+- Never claim a check you did not do.
+
+## Where things stand (steps 1 to 9)
+
+Next.js app in `app/` (App Router, JavaScript, Tailwind). Mongoose models: `User`, `Incident`, `Shelter` (GeoJSON `location` with 2dsphere indexes). Cookie JWT auth with `/api/auth/register`, `login`, `logout`, `me`, with citizen and organization roles. Incidents and SOS API with rate limiting. Shelters and stats API. Pages: Home dashboard (real data), Report (wired to the API), Shelters, register, login, account. The Map, Resources and About pages are still placeholders. The dark Gen Z shell has a floating sidebar on desktop and a bottom tab bar with a center SOS button on mobile.
+
+---
+
+## Step 10: Offline map (CHECKPOINT)
+
+Build the real Map page at `/map` that works with no internet.
+
+1. Download the `pmtiles` CLI (go-pmtiles) as a release binary for macOS arm64. Do not use Homebrew, it is broken on this Mac. Keep the binary outside the repo, for example `~/bin`.
+2. Find the latest daily build at `https://maps.protomaps.com/builds/` and run `pmtiles extract <build URL> app/public/maps/tricity.pmtiles --bbox=76.60,30.55,76.95,30.85 --maxzoom=14` (bbox order is west,south,east,north). Report the file size. If it is over 60 MB, use maxzoom 13 and run it again.
+3. PMTiles needs HTTP Range requests. Check with `curl -r 0-100 -I` that the file is served with a 206 response. If it is not, add a small route handler that serves it with correct `Range`, `Content-Range` and `Accept-Ranges` headers.
+4. Install `maplibre-gl`, `pmtiles` and `@protomaps/basemaps` from npm. Register the pmtiles protocol. Use the Protomaps dark theme.
+5. Download the glyph (font) and sprite files ONCE from the protomaps `basemaps-assets` repository into `app/public/map-assets/` and use local URLs. Nothing may load from the internet at runtime.
+6. The page is a client component loaded with `next/dynamic` and `ssr: false`. Full-height map card. Fit to the data bounds on load. With no data, centre on 30.65, 76.80 at zoom 11.
+7. Markers from `GET /api/incidents` and `GET /api/shelters`. Incidents are coloured by severity (low blue, medium amber, high orange, critical red with a gentle pulse). Shelters are green. Clicking opens a popup: incidents show type, severity, status, address and reported time; shelters show a capacity bar and status.
+8. User location dot plus a "My location" button. Filter chips (Incidents, Shelters). A legend. Refetch every 30 seconds while the tab is visible. Loading, empty and error states.
+9. Deep links: `/map?focus=incident:<id>` and `/map?focus=shelter:<id>` fly to the item and open its popup. Update the "Open map", nearby and "View on map" links on Home and Shelters to use them.
+10. Mobile: the map fills the screen above the bottom tab bar, with thumb-reachable controls.
+11. Write `docs/OFFLINE_MAP.md` with the exact regenerate command.
+
+Verify: lint, build, and a check that the map page makes no requests to non-localhost hosts (grep the build output, and use the browser network view if connected).
+STOP and ask Kartik to test the map in the browser, then turn WiFi off and refresh `/map`.
+
+## Step 11: Offline app and LAN access (CHECKPOINT)
+
+The server runs on the laptop, so "offline" here means no internet, not no server.
+
+1. Add npm scripts to run the production server on all interfaces (`next start -H 0.0.0.0`) and print the laptop's LAN URL, so phones on the same WiFi or hotspot can open the app with no internet.
+2. Browsers only allow service workers and geolocation on a secure context. That works on `localhost`, but NOT on `http://<LAN-IP>`. Investigate `next dev --experimental-https` (self-signed certificate, the user accepts a warning once) and document exactly what works and what does not on a phone. Do not claim phone support you did not verify.
+3. Add a web app manifest, icons generated locally from the existing logo, and a hand-written service worker (`public/sw.js`, no external packages) that caches the app shell and static assets. Do not cache API responses forever. Do not break the pmtiles Range requests.
+4. Offline queue: reports and SOS made while the server is unreachable are stored in IndexedDB and sent automatically when the connection returns (`online` event plus a retry timer). Each item has status `queued`, `sending`, `sent` or `failed`. SOS is sent first.
+5. UI: a clear "Offline" banner, a "queued" badge on the Report confirmation, an "SOS queued, will send when connection returns" state in the SOS modal, and a small queue list on the account page.
+6. Make sure a queued item is never sent twice (client-generated idempotency key, checked by the server).
+
+Verify: simulate offline (stop the dev server or use the browser tool), queue a report and an SOS, bring the server back, and confirm both arrive once.
+STOP and ask Kartik to test with WiFi off.
+
+## Step 12: Incident detail, "My reports" and status management
+
+1. `GET /api/incidents?mine=true` returns only the logged-in user's reports (401 if not logged in).
+2. Page `/incidents/[id]`: type, severity, status, description, address, reported time, a small map with the pin, and a "View on map" link. Do not invent a status history, show only what the data has.
+3. Organization users see buttons to set the status to "in progress" or "resolved" (the existing PATCH route). Citizens and anonymous users do not see them.
+4. Account page: a "My reports" list with status badges, linking to the detail page.
+5. Home "Details" buttons and Recent activity items link to the detail page.
+
+Verify with curl (permission rules) and the UI.
+
+## Step 13: Events
+
+Organizations post events (volunteer drives, donation camps). Citizens join them.
+
+1. Model `Event`: title, description, type (`volunteer_drive`, `donation_camp`, `training`, `awareness`, `other`), location (GeoJSON) plus address, startsAt, optional endsAt, optional capacity, organizer (ref User), attendees (refs User), status (`upcoming` or `cancelled`).
+2. API: `GET /api/events` (filters type and near; upcoming by default), `POST /api/events` (organization only), `PATCH` and `DELETE /api/events/[id]` (the organizer only; DELETE means cancel), `POST` and `DELETE /api/events/[id]/rsvp` (logged-in users; respect capacity; no duplicate RSVP), `GET /api/events/mine`. Validate everything. Rate limit the POST routes.
+3. UI: a new `/events` page added to the sidebar and to the mobile bar or its More menu. Event cards with date, place, spaces left and a Join or Leave button. Type filter chips. Organizations get a "Create event" form.
+4. Account page: "My events" (joined events for citizens; hosted events with attendee counts for organizations).
+
+Verify with curl: permission rules, capacity limit, duplicate RSVP, cancel.
+
+## Step 14: Rule-based triage hints
+
+This is NOT AI. Label it "Suggested priority" and never call it AI anywhere in the UI or docs.
+
+1. `lib/triage.js`: pure JavaScript that scores a description from keywords and returns `{ suggestedSeverity, reasons[] }`. Include English terms (trapped, bleeding, unconscious, collapse, drowning, fire, gas, child, elderly, pregnant, no water, stuck) and a few common Hindi or Hinglish words (aag, bachao, baadh, ghayal, phans). List the keywords at the top of the file so Kartik can review them.
+2. Report form: as the user types, show a "Suggested priority: High, because it mentions 'trapped'" chip with an "Apply" button. The user stays in control.
+3. Server: store `triage: { score, reasons }` on new incidents (add an optional field to the model). Add `sort=priority` to `GET /api/incidents`.
+4. Show the reasons on the incident detail page. Works fully offline.
+
+Verify with unit-style checks of the scoring function and a curl test.
+
+## Step 15: Nearest shelter guidance
+
+No routing engine works offline, so be honest: straight-line guidance only.
+
+1. A "Nearest shelter" action on the Map and on shelter cards: pick the nearest open shelter with free spaces to the user's location (haversine).
+2. Draw a dashed line on the map and show distance plus compass direction (N, NE, E, and so on). Label it clearly: "Straight-line distance, not a road route".
+3. Warn when a shelter is within 2 km of an active high or critical incident ("Near an active incident").
+4. If location is unavailable, use the saved account location, otherwise ask the user to allow location.
+
+Verify the distance and direction maths with known coordinates.
+
+## Step 16: Resources and About pages
+
+1. Resources (static, works offline): emergency numbers (only 112, 100, 101 and 108, shown as tap-to-call links), plus short guides for flood, fire, earthquake and basic first aid. Keep guides short and conservative. No medicine doses. Add a visible note: "General guidance. Follow instructions from local authorities." Add a clear `TODO: verify these numbers before the demo` comment and tell Kartik in your report to verify them.
+2. About: what RescueNet is, how it works offline, the tech stack, and the known limits (straight-line guidance only, map covers one area, rule-based priority). Do not invent team details. Leave a clearly marked TODO block for Kartik to fill.
+3. Consistent styling with the rest of the app.
+
+## Step 17: Security and hardening pass
+
+1. Audit every API route for: auth checks, role checks, input validation, rejecting object values in string fields (NoSQL injection), body size limits, and error messages that do not leak internals.
+2. Security headers in `next.config.js`, including a Content-Security-Policy that allows only same-origin resources (allow `blob:` workers and `data:` and `blob:` images where MapLibre needs them). Remove `X-Powered-By`.
+3. Make sure the Next.js dev badge does not appear in production builds.
+4. Check cookies, JWT secret handling and rate limits again.
+5. Run `npm audit` and report the results. Do NOT run `npm audit fix --force`.
+6. Search the repo for committed secrets (`JWT_SECRET`, `mongodb+srv`, passwords) and confirm `.env.local` is ignored.
+7. Fix what you find, or list what you did not fix and why.
+
+Tell Kartik in your report: an old `.env` containing a MongoDB Atlas URI was committed by a teammate on the `master` branch of this public repo. The Atlas password must be changed in Atlas by hand.
+
+## Step 18: Demo prep (CHECKPOINT)
+
+1. `README.md` (repo root is not editable by rule, so write `docs/README_APP.md`) with exact setup for a fresh laptop: install Node, install MongoDB from the tgz, env file, `npm ci`, seed, regenerate the map file, start commands, and the LAN URL for phones.
+2. A seed script `npm run demo:seed` that adds clearly marked demo incidents (all severities, a few resolved) plus two demo accounts (one citizen, one organization) and a few demo events. Local MongoDB only, idempotent, and it prints the demo credentials. Mark everything `seeded: true`.
+3. `docs/DEMO_SCRIPT.md`: a 5-minute walkthrough, including the moment where WiFi is turned off and the app keeps working.
+4. Final audit: visit every route and every API, run lint and build, run the production build with `next start` on a spare port, and confirm no request leaves localhost on any page. Report exactly what you could and could not verify.
+5. List the known limits honestly (in-memory rate limits reset on restart, straight-line guidance only, one-area map, rule-based priority).
+
+STOP and ask Kartik to do a full offline rehearsal on his laptop.
