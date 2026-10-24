@@ -8,12 +8,17 @@
 
 export const RATE_LIMITS = {
   login: { limit: 10, windowMs: 15 * 60 * 1000 },
+  // Counted per account (the email tried), not per address: see the login route.
+  loginAccount: { limit: 15, windowMs: 15 * 60 * 1000 },
   register: { limit: 10, windowMs: 60 * 60 * 1000 },
   incidents: { limit: 10, windowMs: 10 * 60 * 1000 },
   sos: { limit: 10, windowMs: 10 * 60 * 1000 },
   shelters: { limit: 20, windowMs: 60 * 60 * 1000 },
   events: { limit: 20, windowMs: 60 * 60 * 1000 },
   rsvp: { limit: 60, windowMs: 10 * 60 * 1000 },
+  // Changing things that already exist (status, shelter, event). Logged-in
+  // organizations only, but an organization account is free to make.
+  updates: { limit: 60, windowMs: 10 * 60 * 1000 },
 };
 
 const PRUNE_INTERVAL_MS = 60 * 1000;
@@ -43,14 +48,16 @@ function prune(now) {
 // or a ready-made 429 Response when the caller is over the limit:
 //   const limited = rateLimit(request, "login");
 //   if (limited) return limited;
-export function rateLimit(request, routeName) {
+// By default the limit is per client address; pass { key } to count against
+// something else instead (for example the account being logged into).
+export function rateLimit(request, routeName, { key: subject } = {}) {
   const config = RATE_LIMITS[routeName];
   if (!config) throw new Error(`No rate limit configured for "${routeName}"`);
 
   const now = Date.now();
   prune(now);
 
-  const key = `${routeName}:${clientIp(request)}`;
+  const key = `${routeName}:${subject ?? clientIp(request)}`;
   let bucket = buckets.get(key);
   if (!bucket || bucket.resetAt <= now) {
     // Maps iterate in insertion order, so the first key is the oldest.

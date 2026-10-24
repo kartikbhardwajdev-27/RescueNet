@@ -7,10 +7,16 @@ import User from "@/models/User";
 export const AUTH_COOKIE = "rescuenet_token";
 const TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60;
 
+const MIN_SECRET_LENGTH = 32;
+
 function getSecret() {
   const secret = process.env.JWT_SECRET;
   if (!secret || secret === "change_me") {
     throw new Error('JWT_SECRET is missing or still "change_me". Set a real value in .env.local (openssl rand -hex 32).');
+  }
+  // A short secret can be guessed offline from a single login cookie.
+  if (secret.length < MIN_SECRET_LENGTH) {
+    throw new Error(`JWT_SECRET is too short (${secret.length} characters; at least ${MIN_SECRET_LENGTH}). Use: openssl rand -hex 32`);
   }
   return secret;
 }
@@ -65,6 +71,18 @@ export async function setAuthCookie(user) {
 export async function clearAuthCookie() {
   const cookieStore = await cookies();
   cookieStore.delete(AUTH_COOKIE);
+}
+
+// The id of the person whose login cookie this request carries, or null. Checks
+// the signature and expiry but does not read the database, so it is cheap enough
+// for public lists that only need to know "is this one mine?".
+export async function getSessionUserId() {
+  const cookieStore = await cookies();
+  getSecret();
+  const token = cookieStore.get(AUTH_COOKIE)?.value;
+  if (!token) return null;
+  const payload = verifyToken(token);
+  return payload && typeof payload.id === "string" && mongoose.isValidObjectId(payload.id) ? payload.id : null;
 }
 
 // The logged-in user (without passwordHash), or null. Read-only, so it is safe

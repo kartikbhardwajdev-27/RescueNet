@@ -5,7 +5,7 @@
 // checks whether the caller is one of them, and only those two answers leave:
 //
 //   { ...event fields,
-//     organizer:     { _id, name, orgName },
+//     organizer:     { _id, orgName }  (the organization; never the account holder's own name),
 //     attendeeCount: how many people joined,
 //     spacesLeft:    capacity minus attendeeCount, or null when there is no limit,
 //     joined:        whether the caller joined (false when not logged in),
@@ -44,7 +44,7 @@ export async function findEventViews(match, { viewerId = null, sort = { startsAt
         localField: "organizer",
         foreignField: "_id",
         as: "organizerDoc",
-        pipeline: [{ $project: { name: 1, orgName: "$org.orgName" } }],
+        pipeline: [{ $project: { orgName: "$org.orgName" } }],
       },
     },
     {

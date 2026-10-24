@@ -2,7 +2,8 @@ import { getCurrentUser } from "@/lib/auth";
 import connectDB from "@/lib/db";
 import { eventHasEnded } from "@/lib/eventRules";
 import { findEventView } from "@/lib/eventQueries";
-import { errorResponse, readJsonBody } from "@/lib/http";
+import { badBody, errorResponse, readJsonBody } from "@/lib/http";
+import { rateLimit } from "@/lib/rateLimit";
 import { isObjectIdString, validateEventUpdate } from "@/lib/validation";
 import Event from "@/models/Event";
 
@@ -26,6 +27,9 @@ async function loadOwnEvent(id, user) {
 // UPDATABLE_EVENT_FIELDS (lib/validation.js), never status, organizer or
 // attendees. A cancelled or finished event can't be edited.
 export async function PATCH(request, { params }) {
+  const limited = rateLimit(request, "updates");
+  if (limited) return limited;
+
   const user = await getCurrentUser();
   if (!user) return errorResponse(401, "Not authenticated");
   if (user.role !== "organization") return errorResponse(403, "Only organizations can edit events");
@@ -37,7 +41,7 @@ export async function PATCH(request, { params }) {
   if (eventHasEnded(event, Date.now())) return errorResponse(409, "An event that has already happened can't be edited");
 
   const body = await readJsonBody(request);
-  if (!body) return errorResponse(400, "Request body must be a JSON object");
+  if (!body) return badBody(request);
 
   const { errors, updates } = validateEventUpdate(body, event);
   const messages = Object.values(errors);
@@ -77,7 +81,10 @@ export async function PATCH(request, { params }) {
 // Cancel an event ("delete" keeps the record, so the people who joined can still
 // see that it was cancelled). Only the organization that posted it may. Cancelling
 // twice is fine and changes nothing.
-export async function DELETE(_request, { params }) {
+export async function DELETE(request, { params }) {
+  const limited = rateLimit(request, "updates");
+  if (limited) return limited;
+
   const user = await getCurrentUser();
   if (!user) return errorResponse(401, "Not authenticated");
   if (user.role !== "organization") return errorResponse(403, "Only organizations can cancel events");

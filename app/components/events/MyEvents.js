@@ -50,7 +50,7 @@ function Row({ event, now, hosting }) {
             {event.capacity != null && <span className="font-normal text-ink-muted"> · {event.capacity} spaces</span>}
           </p>
         ) : (
-          <p className="mt-0.5 text-xs text-ink-muted">Organized by {event.organizer?.orgName || event.organizer?.name || "an organization"}</p>
+          <p className="mt-0.5 text-xs text-ink-muted">Organized by {event.organizer?.orgName || "an organization"}</p>
         )}
       </div>
     </li>

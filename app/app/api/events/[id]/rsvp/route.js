@@ -62,7 +62,10 @@ export async function POST(request, { params }) {
 
 // Leave an event. Leaving one you never joined changes nothing (and is not an
 // error), so pressing it twice, or from two tabs, is harmless.
-export async function DELETE(_request, { params }) {
+export async function DELETE(request, { params }) {
+  const limited = rateLimit(request, "rsvp");
+  if (limited) return limited;
+
   const user = await getCurrentUser();
   if (!user) return errorResponse(401, "Not authenticated");
 

@@ -192,7 +192,7 @@ export default function IncidentDetail({ id }) {
   const shownAt = incidentTime(incident);
   const receivedLate = incident.capturedAt && Date.parse(incident.createdAt) - Date.parse(incident.capturedAt) > NOTABLE_GAP_MS;
   const changedSince = Date.parse(incident.updatedAt) - Date.parse(incident.createdAt) > NOTABLE_GAP_MS;
-  const isMine = Boolean(user && incident.reportedBy && String(incident.reportedBy) === String(user._id));
+  const isMine = Boolean(user && incident.isMine);
   const isOrganization = !authLoading && user?.role === "organization";
 
   return (

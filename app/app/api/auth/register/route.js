@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs";
 import { assertAuthConfigured, setAuthCookie } from "@/lib/auth";
 import connectDB from "@/lib/db";
-import { errorResponse, readJsonBody } from "@/lib/http";
+import { badBody, errorResponse, readJsonBody } from "@/lib/http";
 import { rateLimit } from "@/lib/rateLimit";
 import { validateRegistration } from "@/lib/validation";
 import User from "@/models/User";
@@ -16,7 +16,7 @@ export async function POST(request) {
   assertAuthConfigured();
 
   const body = await readJsonBody(request);
-  if (!body) return errorResponse(400, "Request body must be a JSON object");
+  if (!body) return badBody(request);
 
   const { errors, data } = validateRegistration(body);
   const messages = Object.values(errors);

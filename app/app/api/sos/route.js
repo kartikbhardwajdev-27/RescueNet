@@ -1,7 +1,7 @@
 import { getCurrentUser } from "@/lib/auth";
 import connectDB from "@/lib/db";
 import ensureIndexes from "@/lib/ensureIndexes";
-import { errorResponse, readJsonBody } from "@/lib/http";
+import { badBody, errorResponse, readJsonBody } from "@/lib/http";
 import { REPLAY_HEADERS, clientIdFor, isDuplicateKeyError, readIdempotencyKey } from "@/lib/idempotency";
 import { rateLimit } from "@/lib/rateLimit";
 import { scoreDescription } from "@/lib/triage";
@@ -35,7 +35,7 @@ export async function POST(request) {
   if (limited) return limited;
 
   const body = await readJsonBody(request);
-  if (!body) return errorResponse(400, "Request body must be a JSON object");
+  if (!body) return badBody(request);
 
   const { errors, data } = validateSosInput(body);
   const messages = Object.values(errors);

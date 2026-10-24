@@ -1,7 +1,7 @@
 import { getCurrentUser } from "@/lib/auth";
 import connectDB from "@/lib/db";
 import { eventTimeFilter, findEventView, findEventViews } from "@/lib/eventQueries";
-import { errorResponse, readJsonBody } from "@/lib/http";
+import { badBody, errorResponse, readJsonBody } from "@/lib/http";
 import { rateLimit } from "@/lib/rateLimit";
 import { parseEventQuery, validateEventInput } from "@/lib/validation";
 import Event from "@/models/Event";
@@ -41,7 +41,7 @@ export async function POST(request) {
   if (user.role !== "organization") return errorResponse(403, "Only organizations can post events");
 
   const body = await readJsonBody(request);
-  if (!body) return errorResponse(400, "Request body must be a JSON object");
+  if (!body) return badBody(request);
 
   const { errors, data } = validateEventInput(body);
   const messages = Object.values(errors);

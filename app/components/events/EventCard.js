@@ -30,7 +30,7 @@ export default function EventCard({ event, now, distanceKm, loggedIn, busy, onJo
   const ended = !cancelled && eventHasEnded(event, now);
   const happeningNow = !cancelled && !ended && Date.parse(event.startsAt) <= now;
   const full = event.spacesLeft === 0;
-  const organizer = event.organizer?.orgName || event.organizer?.name || "An organization";
+  const organizer = event.organizer?.orgName || "An organization";
 
   let action;
   if (event.hosting) {

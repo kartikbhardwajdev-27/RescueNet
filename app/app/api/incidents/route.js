@@ -1,14 +1,20 @@
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, getSessionUserId } from "@/lib/auth";
 import connectDB from "@/lib/db";
 import ensureIndexes from "@/lib/ensureIndexes";
-import { errorResponse, readJsonBody } from "@/lib/http";
+import { badBody, errorResponse, readJsonBody } from "@/lib/http";
 import { REPLAY_HEADERS, clientIdFor, isDuplicateKeyError, readIdempotencyKey } from "@/lib/idempotency";
+import { toPublicIncident } from "@/lib/publicView";
 import { rateLimit } from "@/lib/rateLimit";
 import { PRIORITY_SEVERITY_WEIGHT, SOS_PRIORITY_BONUS, scoreDescription } from "@/lib/triage";
 import { parseIncidentQuery, validateIncidentInput } from "@/lib/validation";
 import Incident from "@/models/Incident";
 
-const replay = (existing) => Response.json(existing, { status: 200, headers: REPLAY_HEADERS });
+// What a sender gets back and what a list shows depends on who is asking
+// (`isMine`), so none of it may sit in a shared cache.
+const NO_STORE = { "Cache-Control": "no-store" };
+
+const replay = (existing, viewerId) =>
+  Response.json(toPublicIncident(existing, viewerId), { status: 200, headers: { ...REPLAY_HEADERS, ...NO_STORE } });
 
 // sort=priority, worked out inside MongoDB so the limit applies after sorting.
 // The same sum as priorityOf() in lib/triage.js: the reporter's severity, plus
@@ -50,14 +56,14 @@ export async function POST(request) {
     await connectDB();
     await ensureIndexes(Incident);
     const existing = await Incident.findOne({ clientId }).lean();
-    if (existing) return replay(existing);
+    if (existing) return replay(existing, await getSessionUserId());
   }
 
   const limited = rateLimit(request, "incidents");
   if (limited) return limited;
 
   const body = await readJsonBody(request);
-  if (!body) return errorResponse(400, "Request body must be a JSON object");
+  if (!body) return badBody(request);
 
   const { errors, data } = validateIncidentInput(body);
   const messages = Object.values(errors);
@@ -78,11 +84,11 @@ export async function POST(request) {
     // Two copies of the same request raced; the unique index let one through.
     if (clientId && isDuplicateKeyError(err)) {
       const existing = await Incident.findOne({ clientId }).lean();
-      if (existing) return replay(existing);
+      if (existing) return replay(existing, user?._id);
     }
     throw err;
   }
-  return Response.json(incident, { status: 201 });
+  return Response.json(toPublicIncident(incident, user?._id), { status: 201, headers: NO_STORE });
 }
 
 export async function GET(request) {
@@ -92,10 +98,14 @@ export async function GET(request) {
 
   // mine=true: only the logged-in person's own reports. Matched on the id from
   // their session cookie, so nobody can ask for someone else's.
+  let viewerId = null;
   if (mine) {
     const user = await getCurrentUser();
     if (!user) return errorResponse(401, "Not authenticated");
     filter.reportedBy = user._id;
+    viewerId = user._id;
+  } else {
+    viewerId = await getSessionUserId();
   }
 
   await connectDB();
@@ -104,6 +114,8 @@ export async function GET(request) {
       ? await Incident.aggregate(priorityPipeline(filter, limit))
       : // _id breaks ties so equal timestamps keep a stable order.
         await Incident.find(filter).sort({ createdAt: -1, _id: -1 }).limit(limit).lean();
-  // A person's own list is personal: keep it out of any shared cache.
-  return Response.json(incidents, mine ? { headers: { "Cache-Control": "no-store" } } : undefined);
+  return Response.json(
+    incidents.map((incident) => toPublicIncident(incident, viewerId)),
+    { headers: NO_STORE },
+  );
 }

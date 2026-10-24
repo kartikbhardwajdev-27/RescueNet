@@ -1,6 +1,7 @@
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, getSessionUserId } from "@/lib/auth";
 import connectDB from "@/lib/db";
-import { errorResponse, readJsonBody } from "@/lib/http";
+import { badBody, errorResponse, readJsonBody } from "@/lib/http";
+import { toPublicShelter } from "@/lib/publicView";
 import { rateLimit } from "@/lib/rateLimit";
 import { parseShelterQuery, validateShelterInput } from "@/lib/validation";
 import Shelter from "@/models/Shelter";
@@ -16,7 +17,12 @@ export async function GET(request) {
   // $near already orders by distance and can't be combined with a sort.
   if (!nearest) query = query.sort({ createdAt: -1, _id: -1 });
   const shelters = await query.limit(limit).lean();
-  return Response.json(shelters);
+  // isMine depends on who is asking, so this list must not sit in a shared cache.
+  const viewerId = await getSessionUserId();
+  return Response.json(
+    shelters.map((shelter) => toPublicShelter(shelter, viewerId)),
+    { headers: { "Cache-Control": "no-store" } },
+  );
 }
 
 // Only logged-in organizations may add shelters.
@@ -29,7 +35,7 @@ export async function POST(request) {
   if (user.role !== "organization") return errorResponse(403, "Only organizations can add shelters");
 
   const body = await readJsonBody(request);
-  if (!body) return errorResponse(400, "Request body must be a JSON object");
+  if (!body) return badBody(request);
 
   const { errors, data } = validateShelterInput(body);
   const messages = Object.values(errors);
@@ -37,5 +43,5 @@ export async function POST(request) {
 
   await connectDB();
   const shelter = await Shelter.create({ ...data, createdBy: user._id });
-  return Response.json(shelter, { status: 201 });
+  return Response.json(toPublicShelter(shelter, user._id), { status: 201, headers: { "Cache-Control": "no-store" } });
 }

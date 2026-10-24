@@ -221,7 +221,7 @@ export default function SheltersView() {
                 direction={direction}
                 warning={warnings.get(shelter._id)}
                 isNearest={shelter._id === nearestId}
-                canEdit={isOrg && !shelter.seeded && shelter.createdBy === user._id}
+                canEdit={isOrg && !shelter.seeded && shelter.isMine}
                 onEdit={(target) => setModal({ shelter: target })}
               />
             ))}
