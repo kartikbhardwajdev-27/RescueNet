@@ -1,0 +1,217 @@
+/*
+ * Map page: markers, popup and MapLibre's own controls in the app's dark style.
+ * Plain CSS on purpose (no @apply), built on the tokens in app/globals.css.
+ * Imported only by MapView, so it loads with the map chunk and nowhere else.
+ */
+
+/* ---- markers ---------------------------------------------------------- */
+
+/* A 40px touch target with the visible shape centred inside. MapLibre moves the
+   root with transform, so hover and pulse effects live on the children. Never
+   set `position` on a marker root: MapLibre's .maplibregl-marker makes it
+   absolute, and overriding that stacks every marker in normal flow. */
+.rn-marker {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--on-brand);
+  cursor: pointer;
+}
+
+.rn-marker[data-tone="blue"] {
+  --marker: var(--info);
+}
+.rn-marker[data-tone="amber"] {
+  --marker: var(--warn);
+}
+.rn-marker[data-tone="orange"] {
+  --marker: #fb923c;
+}
+.rn-marker[data-tone="red"] {
+  --marker: var(--sos);
+  color: #fff;
+}
+.rn-marker[data-tone="green"] {
+  --marker: var(--safe);
+}
+
+.rn-dot {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--marker);
+  box-shadow:
+    0 0 0 2px var(--ink),
+    0 4px 12px rgb(0 0 0 / 0.55);
+  font: 800 15px/1 var(--font-display);
+  transition: transform 150ms ease-out;
+}
+
+.rn-marker-incident[data-tone="red"] .rn-dot {
+  width: 30px;
+  height: 30px;
+}
+
+.rn-marker-shelter .rn-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+}
+
+.rn-marker:hover .rn-dot {
+  transform: scale(1.12);
+}
+
+.rn-marker:focus-visible {
+  outline: none;
+}
+.rn-marker:focus-visible .rn-dot {
+  outline: 2px solid var(--brand-to);
+  outline-offset: 4px;
+}
+
+/* A closed shelter is still green, just quieter. */
+.rn-marker.is-closed {
+  opacity: 0.55;
+}
+
+/* The gentle pulse on critical incidents: a soft ring that grows and fades. */
+.rn-pulse {
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--marker);
+  opacity: 0;
+  animation: rn-pulse 2.6s ease-out infinite;
+}
+
+@keyframes rn-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  70%,
+  100% {
+    transform: scale(2.3);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rn-pulse {
+    animation: none;
+    opacity: 0.25;
+    transform: scale(1.6);
+  }
+}
+
+/* The person's own position: a blue dot with a soft halo. */
+.rn-user {
+  width: 20px;
+  height: 20px;
+  pointer-events: none;
+}
+.rn-user-halo {
+  position: absolute;
+  inset: -14px;
+  border-radius: 50%;
+  background: rgb(96 165 250 / 0.22);
+}
+.rn-user-dot {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--info);
+  border: 3px solid #fff;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.5);
+}
+
+/* ---- popup ------------------------------------------------------------ */
+
+/* Above the overlay panels (z-10) but below the app's fixed nav (z-40). */
+.rn-map .maplibregl-popup {
+  z-index: 20;
+}
+
+.rn-map .maplibregl-popup-content {
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 20px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 14px 40px rgb(0 0 0 / 0.55);
+  font-family: var(--font-sans);
+}
+
+.rn-map .maplibregl-popup-anchor-top .maplibregl-popup-tip,
+.rn-map .maplibregl-popup-anchor-top-left .maplibregl-popup-tip,
+.rn-map .maplibregl-popup-anchor-top-right .maplibregl-popup-tip {
+  border-bottom-color: var(--surface);
+}
+.rn-map .maplibregl-popup-anchor-bottom .maplibregl-popup-tip,
+.rn-map .maplibregl-popup-anchor-bottom-left .maplibregl-popup-tip,
+.rn-map .maplibregl-popup-anchor-bottom-right .maplibregl-popup-tip {
+  border-top-color: var(--surface);
+}
+.rn-map .maplibregl-popup-anchor-left .maplibregl-popup-tip {
+  border-right-color: var(--surface);
+}
+.rn-map .maplibregl-popup-anchor-right .maplibregl-popup-tip {
+  border-left-color: var(--surface);
+}
+
+/* ---- MapLibre controls ------------------------------------------------- */
+
+.rn-map .maplibregl-ctrl-group {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.35);
+}
+.rn-map .maplibregl-ctrl-group button {
+  width: 40px;
+  height: 40px;
+  background-color: transparent;
+}
+.rn-map .maplibregl-ctrl-group button + button {
+  border-top: 1px solid var(--line);
+}
+.rn-map .maplibregl-ctrl-group button:not(:disabled):hover {
+  background-color: rgb(255 255 255 / 0.1);
+}
+/* The stock icons are dark strokes on white; flip them for the dark glass. */
+.rn-map .maplibregl-ctrl button .maplibregl-ctrl-icon {
+  filter: invert(1);
+}
+
+.rn-map .maplibregl-ctrl.maplibregl-ctrl-attrib,
+.rn-map .maplibregl-ctrl-attrib.maplibregl-compact {
+  background: var(--glass);
+  color: var(--ink-muted);
+  font: 11px/1.5 var(--font-sans);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+}
+.rn-map .maplibregl-ctrl-attrib a {
+  color: inherit;
+}
+.rn-map .maplibregl-ctrl-attrib-button {
+  filter: invert(1);
+}
+
+/* Pinch and double-tap zoom on a phone; the +/- buttons are for larger screens. */
+@media (max-width: 767px) {
+  .rn-map .maplibregl-ctrl-top-right {
+    display: none;
+  }
+}

@@ -6,6 +6,7 @@ import Card from "@/components/Card";
 import { incidentTypeMeta } from "@/components/incidentMeta";
 import { buildNearbyItems, capitalize } from "@/lib/dashboard";
 import { formatDistance } from "@/lib/geo";
+import { mapHref } from "@/lib/mapFocus";
 import { formatRelativeTime } from "@/lib/time";
 import Icon from "./Icon";
 import { EmptyState, ErrorState, SkeletonRows } from "./states";
@@ -28,7 +29,7 @@ function describe(item, now) {
       tone: "green",
       title: record.name,
       detail: [away, `${free.toLocaleString("en-US")} ${free === 1 ? "space" : "spaces"} free`].filter(Boolean).join(" · "),
-      action: { label: "View", href: "/shelters" },
+      action: { label: "View", href: mapHref("shelter", record._id) },
     };
   }
 
@@ -38,7 +39,7 @@ function describe(item, now) {
     tone: "red",
     title: `${label} · ${capitalize(record.severity)}`,
     detail: [away ?? formatRelativeTime(record.createdAt, now), record.address || record.description].join(" · "),
-    action: { label: "Details", href: "/map" },
+    action: { label: "Details", href: mapHref("incident", record._id) },
   };
 }
 
