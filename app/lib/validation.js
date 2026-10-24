@@ -12,6 +12,7 @@ import {
   INCIDENT_STATUSES,
   INCIDENT_TYPES,
   MAX_DESCRIPTION_LENGTH,
+  parseCapturedAt,
 } from "@/lib/incidentRules";
 import {
   MAX_SHELTER_ADDRESS_LENGTH,
@@ -187,6 +188,10 @@ export function validateIncidentInput(body) {
     else errors.severity = `Severity must be one of: ${INCIDENT_SEVERITIES.join(", ")}`;
   }
 
+  // Never an error: an unusable capturedAt is just left out (see incidentRules.js).
+  const capturedAt = parseCapturedAt(body.capturedAt);
+  if (capturedAt) data.capturedAt = capturedAt;
+
   return { errors, data };
 }
 
@@ -202,6 +207,9 @@ export function validateSosInput(body) {
   const message = readOptionalText(body.message, "Message", MAX_SOS_MESSAGE_LENGTH);
   if (message.error) errors.message = message.error;
   else data.message = message.value;
+
+  const capturedAt = parseCapturedAt(body.capturedAt);
+  if (capturedAt) data.capturedAt = capturedAt;
 
   return { errors, data };
 }
@@ -257,11 +265,18 @@ function readNear(params, errors) {
   return errors.near || errors.radiusKm ? null : { lng, lat, radiusKm };
 }
 
-// GET /api/incidents query string -> { errors, filter, limit }. Incidents stay
-// newest first, so `near` is a plain "within radius" filter.
+// GET /api/incidents query string -> { errors, filter, limit, mine }. Incidents
+// stay newest first, so `near` is a plain "within radius" filter. `mine=true`
+// asks for only the logged-in user's own reports; the route turns that into a
+// filter on the session's user id (never on anything in the query string).
 export function parseIncidentQuery(params) {
   const errors = {};
   const filter = {};
+
+  let mine = false;
+  const rawMine = params.get("mine");
+  if (rawMine === "true") mine = true;
+  else if (rawMine !== null && rawMine !== "false") errors.mine = "mine must be true or false";
 
   readEnumFilters(params, errors, filter, [
     ["status", INCIDENT_STATUSES],
@@ -274,7 +289,7 @@ export function parseIncidentQuery(params) {
     filter.location = { $geoWithin: { $centerSphere: [[near.lng, near.lat], near.radiusKm / EARTH_RADIUS_KM] } };
   }
 
-  return { errors, filter, limit };
+  return { errors, filter, limit, mine };
 }
 
 // GET /api/shelters query string -> { errors, filter, limit, nearest }.

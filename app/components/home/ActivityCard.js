@@ -1,9 +1,11 @@
 "use client";
 
 import { useMemo } from "react";
+import Link from "next/link";
 import Card from "@/components/Card";
 import { incidentTypeMeta } from "@/components/incidentMeta";
 import { buildActivityItems } from "@/lib/dashboard";
+import { incidentHref } from "@/lib/incidentLinks";
 import { formatRelativeTime } from "@/lib/time";
 import { EmptyState, ErrorState, SkeletonRows } from "./states";
 import { toneClasses } from "./tones";
@@ -36,9 +38,18 @@ export default function ActivityCard({ incidents, className = "" }) {
                   aria-hidden="true"
                   className={`absolute top-1 left-0 size-3.5 rounded-full ring-4 ring-surface ${toneClasses(item.tone).dot}`}
                 />
-                <p className="text-sm font-semibold">{item.title}</p>
-                <p className="text-xs text-ink-muted">{item.detail}</p>
-                <p className="mt-0.5 text-xs font-medium text-ink-muted">{formatRelativeTime(item.createdAt, now)}</p>
+                <Link
+                  href={incidentHref(item.id)}
+                  className="-mx-2 -my-1 block rounded-xl px-2 py-1 transition-colors hover:bg-white/5"
+                >
+                  <p className="text-sm font-semibold">{item.title}</p>
+                  <p className="text-xs text-ink-muted">{item.detail}</p>
+                  <p className="mt-0.5 text-xs font-medium text-ink-muted">
+                    <time dateTime={item.time} title={new Date(item.time).toLocaleString()}>
+                      {formatRelativeTime(item.time, now)}
+                    </time>
+                  </p>
+                </Link>
               </li>
             ))}
           </ol>

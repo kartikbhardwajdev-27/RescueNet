@@ -6,8 +6,9 @@ import Card from "@/components/Card";
 import { incidentTypeMeta } from "@/components/incidentMeta";
 import { buildNearbyItems, capitalize } from "@/lib/dashboard";
 import { formatDistance } from "@/lib/geo";
+import { incidentHref } from "@/lib/incidentLinks";
 import { mapHref } from "@/lib/mapFocus";
-import { formatRelativeTime } from "@/lib/time";
+import { formatRelativeTime, incidentTime } from "@/lib/time";
 import Icon from "./Icon";
 import { EmptyState, ErrorState, SkeletonRows } from "./states";
 import { toneClasses } from "./tones";
@@ -38,8 +39,8 @@ function describe(item, now) {
     icon: <TypeIcon className="size-5" aria-hidden="true" />,
     tone: "red",
     title: `${label} · ${capitalize(record.severity)}`,
-    detail: [away ?? formatRelativeTime(record.createdAt, now), record.address || record.description].join(" · "),
-    action: { label: "Details", href: mapHref("incident", record._id) },
+    detail: [away ?? formatRelativeTime(incidentTime(record), now), record.address || record.description].join(" · "),
+    action: { label: "Details", href: incidentHref(record._id) },
   };
 }
 

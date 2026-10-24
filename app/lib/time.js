@@ -8,3 +8,10 @@ export function formatRelativeTime(iso, nowMs) {
   if (hours < 24) return `${hours} h ago`;
   return `${Math.floor(hours / 24)} d ago`;
 }
+
+// The time to show for an incident: when the person actually submitted it
+// (capturedAt, set for reports that waited in the offline queue) or, when there
+// is none, when the server received it (createdAt). Returns an ISO string.
+export function incidentTime(incident) {
+  return incident.capturedAt ?? incident.createdAt;
+}

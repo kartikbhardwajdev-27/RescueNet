@@ -55,12 +55,21 @@ export async function POST(request) {
 }
 
 export async function GET(request) {
-  const { errors, filter, limit } = parseIncidentQuery(new URL(request.url).searchParams);
+  const { errors, filter, limit, mine } = parseIncidentQuery(new URL(request.url).searchParams);
   const messages = Object.values(errors);
   if (messages.length > 0) return errorResponse(400, messages[0], { errors });
+
+  // mine=true: only the logged-in person's own reports. Matched on the id from
+  // their session cookie, so nobody can ask for someone else's.
+  if (mine) {
+    const user = await getCurrentUser();
+    if (!user) return errorResponse(401, "Not authenticated");
+    filter.reportedBy = user._id;
+  }
 
   await connectDB();
   // _id breaks ties so equal timestamps keep a stable order.
   const incidents = await Incident.find(filter).sort({ createdAt: -1, _id: -1 }).limit(limit).lean();
-  return Response.json(incidents);
+  // A person's own list is personal: keep it out of any shared cache.
+  return Response.json(incidents, mine ? { headers: { "Cache-Control": "no-store" } } : undefined);
 }

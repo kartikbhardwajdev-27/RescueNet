@@ -14,6 +14,11 @@ const incidentSchema = new mongoose.Schema(
     status: { type: String, enum: INCIDENT_STATUSES, default: "reported" },
     // Optional so anonymous reports are allowed.
     reportedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    // When the person actually submitted it, as reported by their device. Absent
+    // when the sender gave none, or one the server could not trust (see
+    // parseCapturedAt in lib/incidentRules.js). createdAt stays the moment the
+    // server received it.
+    capturedAt: { type: Date },
     // "<route>:<Idempotency-Key>" for reports that came through the offline
     // queue (see lib/idempotency.js). Never returned by queries or in JSON.
     clientId: { type: String, select: false },

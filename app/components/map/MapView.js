@@ -27,6 +27,7 @@ import {
 } from "./mapConfig";
 import { MAP_CARD_SIZE } from "./mapLayout";
 import { setupMapRuntime } from "./mapRuntime";
+import { webglAvailable } from "./webgl";
 import { createIncidentMarker, createShelterMarker, createUserMarker, markerSignature, pointOf } from "./markers";
 
 const COMPACT_WIDTH = 768; // Tailwind's md: the layout below it is the phone layout
@@ -39,15 +40,6 @@ const FIT_PADDING = {
 };
 
 const hasSettled = (resource) => !(resource.loading && !resource.data);
-
-function webglAvailable() {
-  try {
-    const canvas = document.createElement("canvas");
-    return Boolean(canvas.getContext("webgl2") || canvas.getContext("webgl"));
-  } catch {
-    return false;
-  }
-}
 
 // The live map: the Protomaps dark basemap read from a local file, with the
 // incidents and shelters from the API on top. Client-only (see MapLoader).

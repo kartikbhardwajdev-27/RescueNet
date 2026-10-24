@@ -1,9 +1,13 @@
 // Pure helpers that turn API records into what the Home dashboard shows.
 import { distanceKm } from "./geo";
+import { incidentTime } from "./time";
 
 const isActive = (incident) => incident.status !== "resolved";
 const toPoint = (record) => ({ lng: record.location.coordinates[0], lat: record.location.coordinates[1] });
-const newestFirst = (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt);
+// Newest first by the time shown to people: when an incident was actually
+// submitted (capturedAt) if it waited in the offline queue, else when the server
+// received it. Shelters have only createdAt, which incidentTime falls back to.
+const newestFirst = (a, b) => Date.parse(incidentTime(b)) - Date.parse(incidentTime(a));
 
 // The closest open shelters and active incidents, merged into one list.
 // With a location each item gets `distanceKm` and the list is nearest first;
@@ -35,9 +39,10 @@ const ACTIVITY_STATUS = {
   resolved: { tone: "green", suffix: "resolved" },
 };
 
-// The latest incidents (newest first, as the API returns them), as timeline entries.
+// The latest incidents as timeline entries, newest first by the time they are
+// shown with (see newestFirst), so the times read in order down the list.
 export function buildActivityItems(incidents = [], { typeLabel, limit = 4 }) {
-  return incidents.slice(0, limit).map((incident) => {
+  return [...incidents].sort(newestFirst).slice(0, limit).map((incident) => {
     const status = ACTIVITY_STATUS[incident.status] ?? ACTIVITY_STATUS.reported;
     const place = incident.address || incident.description;
     return {
@@ -45,7 +50,7 @@ export function buildActivityItems(incidents = [], { typeLabel, limit = 4 }) {
       tone: status.tone,
       title: `${typeLabel(incident.type)} ${status.suffix}`,
       detail: `${capitalize(incident.severity)} severity · ${place.length > 60 ? `${place.slice(0, 57)}…` : place}`,
-      createdAt: incident.createdAt,
+      time: incidentTime(incident),
     };
   });
 }

@@ -51,6 +51,7 @@ export async function POST(request) {
       status: "reported",
       description: data.message ? `SOS alert: ${data.message}` : "SOS alert",
       location: data.location,
+      capturedAt: data.capturedAt,
       reportedBy: user?._id,
       clientId,
     });

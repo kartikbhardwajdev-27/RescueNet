@@ -67,9 +67,17 @@ const emit = (event) => {
 
 // ---- talking to the server ----
 
+// The time the person submitted it travels with every send (and every retry), so
+// a report that waited in the queue is still dated when it was made.
+const sendOptions = (item, timeoutMs) => ({
+  idempotencyKey: item.id,
+  timeoutMs,
+  capturedAt: new Date(item.createdAt).toISOString(),
+});
+
 const SEND = {
-  sos: (payload, options) => sendSos(payload.location, options),
-  report: (payload, options) => createIncident(payload, options),
+  sos: (item, options) => sendSos(item.payload.location, options),
+  report: (item, options) => createIncident(item.payload, options),
 };
 
 const serverIdOf = (kind, result) => (kind === "sos" ? result.id : result.incident?._id);
@@ -148,10 +156,7 @@ async function changed() {
 // For an interactive attempt a "failed" item is removed (the person sees the
 // error right there and fixes it); in the background it stays, marked failed.
 async function runAttempt(item, { interactive }) {
-  const result = await SEND[item.kind](item.payload, {
-    idempotencyKey: item.id,
-    timeoutMs: interactive ? INTERACTIVE_TIMEOUT_MS : BACKGROUND_TIMEOUT_MS,
-  });
+  const result = await SEND[item.kind](item, sendOptions(item, interactive ? INTERACTIVE_TIMEOUT_MS : BACKGROUND_TIMEOUT_MS));
   const now = Date.now();
 
   if (result.ok) {
@@ -290,7 +295,7 @@ export async function submitToOutbox({ kind, payload }) {
 
   if (!(await isStoreAvailable())) {
     // No place to keep it, so behave as before the outbox existed: send once.
-    const result = await SEND[kind](payload, { idempotencyKey: item.id, timeoutMs: INTERACTIVE_TIMEOUT_MS });
+    const result = await SEND[kind](item, sendOptions(item, INTERACTIVE_TIMEOUT_MS));
     if (result.ok) return { status: "sent", item, id: serverIdOf(kind, result) };
     return { status: "failed", item, kind: result.kind, message: result.message, errors: result.errors, unsaved: true };
   }

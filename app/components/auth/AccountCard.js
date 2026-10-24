@@ -3,6 +3,7 @@
 import { LoaderCircle, LogOut, Mail, MapPin, Phone, WifiOff } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import Card from "@/components/Card";
+import MyReports from "@/components/incidents/MyReports";
 import OutboxList from "@/components/outbox/OutboxList";
 import Avatar from "./Avatar";
 import AuthSkeleton from "./AuthSkeleton";
@@ -121,6 +122,7 @@ export default function AccountCard() {
           </button>
         </div>
       </Card>
+      <MyReports />
       <OutboxList />
     </>
   );

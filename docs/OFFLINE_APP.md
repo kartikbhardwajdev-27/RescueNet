@@ -144,6 +144,39 @@ retried, and there was still exactly one SOS. Also verified: 8 parallel requests
 with one key created one incident; two open tabs with six queued reports sent
 each exactly once (6 created, 0 replays).
 
+### When it happened: `capturedAt`
+
+A report that waited in the queue reaches the server later, so the server's own
+receive time (`createdAt`) would say "just now" about something that happened an
+hour ago. So the phone sends the moment the person pressed Submit or SOS as
+`capturedAt` (taken from when the item was saved, and sent again unchanged on
+every retry), and the server keeps it in a **separate field**. `createdAt` is
+never changed: it stays the server's receive time, and a client cannot set it.
+
+The server only trusts `capturedAt` a little (`parseCapturedAt` in
+`lib/incidentRules.js`). It is **ignored, with no error**, so the report is
+still saved normally, unless it is:
+
+- a real date: ISO 8601 with a time zone (`2026-10-24T09:15:30Z`, `...+05:30`) or a
+  number of milliseconds since 1970. `2026-02-30`, a date with no time zone,
+  free text, seconds-since-1970 and objects are all ignored;
+- not in the future (the phone's clock is ahead); and
+- not older than 7 days.
+
+Screens show `capturedAt` when there is one and `createdAt` otherwise: the
+incident page (with an extra "Reached the server ..." line when the two are more
+than a minute apart), Recent activity, the Home Nearby list, the map popup and My
+reports. The Home timeline is ordered by the time it shows; the API list
+(`GET /api/incidents`) stays ordered by receive time.
+
+Verified over `curl` (46 checks: both endpoints, every ignore rule, replays keep
+the original, `createdAt` cannot be set) and end to end: a queued SOS pressed at
+`06:34:35` and delivered at `06:34:51` is stored with both times.
+
+Limit: the time comes from the phone's clock. A clock that is wrong by hours but
+still inside the 7-day window is believed, and shows that wrong time; one that is
+ahead is ignored.
+
 ### Limits of the outbox
 
 - It retries **only while RescueNet is open** in a browser tab. There is no

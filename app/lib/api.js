@@ -9,6 +9,7 @@
 //   "forbidden"     HTTP 403
 //   "not_found"     HTTP 404
 //   "server"        anything else
+//   "bad_request"   HTTP 400 on a read (for example a malformed id in the address)
 //   "aborted"       the caller cancelled (GET helpers only)
 // `message` is ready to show to the user. Failures also carry `status` (the HTTP
 // status, 0 when the server was not reached) and `retryAfter` (seconds, from the
@@ -71,9 +72,13 @@ export function incidentReference(id) {
 
 // ---- incidents and SOS ----
 
-// Both take an optional second argument { idempotencyKey, timeoutMs }. With a
-// key the server treats a repeat of the same request as the same report (see
-// lib/idempotency.js), which is what makes it safe to retry from the outbox.
+// Both take an optional second argument { idempotencyKey, timeoutMs, capturedAt }.
+//   idempotencyKey  with a key the server treats a repeat of the same request as
+//                   the same report (see lib/idempotency.js), which is what makes
+//                   it safe to retry from the outbox
+//   capturedAt      an ISO 8601 time: when the person actually submitted it. The
+//                   server keeps it next to its own receive time and ignores it if
+//                   it does not trust it (see parseCapturedAt, lib/incidentRules.js)
 const withKey = ({ idempotencyKey, timeoutMs } = {}) => ({
   headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : undefined,
   timeoutMs,
@@ -81,7 +86,8 @@ const withKey = ({ idempotencyKey, timeoutMs } = {}) => ({
 
 // payload: { type, severity, description, location: { lng, lat }, address? }
 export async function createIncident(payload, options) {
-  const response = await postJson("/api/incidents", payload, withKey(options));
+  const body = options?.capturedAt ? { ...payload, capturedAt: options.capturedAt } : payload;
+  const response = await postJson("/api/incidents", body, withKey(options));
   if (response.ok) return { ok: true, incident: response.data };
   return failure(response, {
     network: "Couldn't reach the server",
@@ -92,12 +98,28 @@ export async function createIncident(payload, options) {
 
 // location: { lng, lat }
 export async function sendSos(location, options) {
-  const response = await postJson("/api/sos", { location: { lng: location.lng, lat: location.lat } }, withKey(options));
+  const body = { location: { lng: location.lng, lat: location.lat } };
+  if (options?.capturedAt) body.capturedAt = options.capturedAt;
+  const response = await postJson("/api/sos", body, withKey(options));
   if (response.ok) return { ok: true, id: response.data.id };
   return failure(response, {
     network: `Couldn't reach the server. ${EMERGENCY_HINT}`,
     rateLimit: `Too many SOS alerts sent. Try again shortly. ${EMERGENCY_HINT}`,
     server: `Something went wrong sending your SOS. Try again. ${EMERGENCY_HINT}`,
+  });
+}
+
+// ---- one incident, "my reports", and changing a status ----
+
+// changes the status of an incident. Organizations only (the server checks).
+// status: "in_progress" | "resolved"
+export async function updateIncidentStatus(id, status) {
+  const response = await patchJson(`/api/incidents/${encodeURIComponent(id)}`, { status });
+  if (response.ok) return { ok: true, incident: response.data };
+  return failure(response, {
+    network: "Couldn't reach the server",
+    rateLimit: "Too many requests, try again shortly",
+    server: GENERIC_ERROR,
   });
 }
 
@@ -130,12 +152,14 @@ export async function updateShelter(id, changes) {
 // { signal } to cancel. Defined once at module level so they are stable
 // references for usePolledResource.
 
+const READ_FAILURE_KINDS = { 400: "bad_request", 401: "unauthorized", 404: "not_found" };
+
 async function getJson(path, { signal } = {}) {
   try {
     const res = await fetch(path, { cache: "no-store", signal });
     const data = await res.json().catch(() => null);
     if (res.ok) return { ok: true, data };
-    return { ok: false, kind: "server", message: data?.error ?? GENERIC_ERROR };
+    return { ok: false, kind: READ_FAILURE_KINDS[res.status] ?? "server", status: res.status, message: data?.error ?? GENERIC_ERROR };
   } catch (err) {
     if (err?.name === "AbortError") return { ok: false, kind: "aborted", message: "" };
     return { ok: false, kind: "network", message: "Couldn't reach the server" };
@@ -143,5 +167,8 @@ async function getJson(path, { signal } = {}) {
 }
 
 export const fetchStats = (options) => getJson("/api/stats", options);
+export const fetchIncident = (id, options) => getJson(`/api/incidents/${encodeURIComponent(id)}`, options);
+// The logged-in person's own reports (401 when logged out).
+export const fetchMyIncidents = (options) => getJson("/api/incidents?mine=true&limit=200", options);
 export const fetchIncidents = (options) => getJson("/api/incidents?limit=200", options);
 export const fetchShelters = (options) => getJson("/api/shelters?limit=200", options);

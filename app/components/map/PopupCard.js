@@ -3,7 +3,7 @@ import { toneClasses } from "@/components/home/tones";
 import { incidentTypeMeta } from "@/components/incidentMeta";
 import CapacityBar from "@/components/shelters/CapacityBar";
 import { SHELTER_STATUS_META } from "@/components/shelters/statusMeta";
-import { formatRelativeTime } from "@/lib/time";
+import { formatRelativeTime, incidentTime } from "@/lib/time";
 import { incidentStatusMeta, severityMeta } from "./mapMeta";
 
 function Pill({ tone, children }) {
@@ -56,8 +56,8 @@ function IncidentDetails({ incident, now, onClose }) {
       {incident.description && <p className="mt-2 line-clamp-3 text-sm text-ink-muted">{incident.description}</p>}
       <p className="mt-3 flex items-center gap-2 text-xs font-medium text-ink-muted">
         <Clock className="size-4 shrink-0" aria-hidden="true" />
-        <time dateTime={incident.createdAt} title={new Date(incident.createdAt).toLocaleString()}>
-          Reported {formatRelativeTime(incident.createdAt, now)}
+        <time dateTime={incidentTime(incident)} title={new Date(incidentTime(incident)).toLocaleString()}>
+          Reported {formatRelativeTime(incidentTime(incident), now)}
         </time>
       </p>
     </>
