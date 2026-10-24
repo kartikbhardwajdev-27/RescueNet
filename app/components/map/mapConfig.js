@@ -22,6 +22,10 @@ export const MAX_ZOOM = 18;
 
 export const SOURCE_ID = "protomaps";
 
+// The dashed line to the nearest shelter ("Nearest shelter" on the map).
+export const NEAREST_SOURCE = "nearest-shelter-line";
+export const NEAREST_LAYER = "nearest-shelter-line";
+
 // MapLibre style: the Protomaps "dark" basemap over the local PMTiles file.
 // `origin` makes every URL absolute, because the style is also read inside a
 // web worker where relative URLs would not resolve.

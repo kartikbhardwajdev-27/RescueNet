@@ -112,6 +112,27 @@
   }
 }
 
+/* The shelter "Nearest shelter" recommends: a green ring around its marker. */
+.rn-marker.is-nearest .rn-dot {
+  box-shadow:
+    0 0 0 2px var(--ink),
+    0 0 0 6px rgb(52 211 153 / 0.45),
+    0 4px 12px rgb(0 0 0 / 0.55);
+}
+
+/* "850 m SW", half way along the dashed line. Not interactive. */
+.rn-line-label {
+  padding: 3px 9px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--surface-raised);
+  color: var(--ink);
+  font: 700 12px/1.3 var(--font-sans);
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.5);
+}
+
 /* The person's own position: a blue dot with a soft halo. */
 .rn-user {
   width: 20px;

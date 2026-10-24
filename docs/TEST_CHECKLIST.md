@@ -209,6 +209,60 @@ new ones at `/register`:
   and read the words and weights. Tell me anything to add or remove.
   - **Not verified at all:** whether the words suit your region.
 
+## 7. Nearest shelter (Step 15)
+
+- [ ] **7.1 Nearest shelter on the map.**
+  1. app server tab: production server running. Chrome: open
+     `http://localhost:3000/map` and **allow location** when asked.
+  2. Press **Nearest shelter** (beside "My location").
+  3. Press **Shelter details** in the panel, then close the panel with the X.
+  - **Expected:** a dashed green line from the blue dot to one green shelter, with
+    a label such as "7.3 km SW" on it; a green ring around that shelter; a panel
+    "Nearest open shelter" with its name, "N spaces free", and the sentence
+    "Straight-line distance, not a road route." The shelter is **open with free
+    spaces**: the demo "Sector 22" shelter is full and the "Kharar" one is closed,
+    so neither should ever be chosen. If you are far outside Chandigarh, Mohali and
+    Panchkula the offline map notice appears and the line is very long (correct).
+  - Account: none needed.
+  - **Automated check: passed** (headless Chrome with a faked location in
+    Chandigarh Sector 17: picked Mohali Phase 7, "7.3 km south-west (SW)", line
+    label, ring, panel, details button; also at phone size).
+    **Not verified at all:** your real location, and the line's look on your screen.
+
+- [ ] **7.2 Warning near an active incident.**
+  1. Report page: make a **Critical** report at latitude `30.7136`, longitude
+     `76.7179` (about 1 km from the demo shelter "Mohali Phase 7").
+  2. Open the Map, press **Nearest shelter** (allow location, or stand anywhere
+     closer to Mohali Phase 7 than to other open shelters).
+  3. Log in as the **organization**, open that incident, press **Mark resolved**.
+     Reload the map (or wait 30 seconds) and press **Nearest shelter** again.
+  - **Expected:** step 2: an amber **Near an active incident · 1.0 km away** badge
+    in the panel, and the same badge in that shelter's popup and on its card on the
+    Shelters page. Step 3: the badge is gone. A medium or low incident, or a high
+    one more than 2 km away, never causes it.
+  - Account: any, then organization.
+  - **Automated check: passed** (headless Chrome with created incidents: 1 km
+    critical warns, 2.6 km high does not, medium does not, resolved clears it).
+
+- [ ] **7.3 No location from the browser.**
+  1. Chrome: click the padlock beside the address, set **Location** to **Block**,
+     reload `/map`. Stay logged out. Press **Nearest shelter**.
+  2. Register a **new citizen** and press "Use my location" on the sign-up form
+     (allow it for this step), then block location again, log in and repeat.
+  - **Expected:** step 1: a panel "We need your location" that explains how to
+    allow it, with **Try again**. Step 2: it still works and says "Measured from
+    the location saved on your account". There is no screen to edit a saved
+    location later, only at sign up.
+  - **Automated check: passed** (headless Chrome, both cases).
+
+- [ ] **7.4 Shelters page.**
+  1. Open **Shelters** (allow location). Press **Nearest shelter**.
+  2. Press **Show the line on the map**.
+  - **Expected:** the page scrolls to one card with a green outline and "Nearest
+    open shelter"; every card shows "x km away · direction"; step 2 opens the map
+    with the line already drawn.
+  - **Automated check: passed.**
+
 ---
 
 ## Not finished

@@ -1,15 +1,19 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Plus, Search } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { Compass, LoaderCircle, Map as MapIcon, Plus, Search } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { EmptyState, ErrorState, Skeleton } from "@/components/home/states";
 import { useToast } from "@/components/SosProvider";
+import useNearestShelter from "@/components/useNearestShelter";
 import usePolledResource from "@/components/usePolledResource";
 import useUserLocation from "@/components/useUserLocation";
-import { fetchShelters } from "@/lib/api";
+import { fetchIncidents, fetchShelters } from "@/lib/api";
 import { distanceKm } from "@/lib/geo";
+import { bearingDegrees, compassDirection, shelterWarnings } from "@/lib/nearest";
 import { SHELTER_STATUSES } from "@/lib/shelterRules";
+import NearestPanel, { nearestPanelButtonClass } from "./NearestPanel";
 import ShelterCard from "./ShelterCard";
 import ShelterFormModal from "./ShelterFormModal";
 import { SHELTER_STATUS_META } from "./statusMeta";
@@ -23,7 +27,18 @@ export default function SheltersView() {
   const { user } = useAuth();
   const showToast = useToast();
   const shelters = usePolledResource(fetchShelters);
+  // Only used to warn about shelters near an active incident.
+  const incidents = usePolledResource(fetchIncidents);
   const place = useUserLocation();
+  const nearest = useNearestShelter({
+    device: place.source === "device" ? place.location : null,
+    shelters: shelters.data,
+    incidents: incidents.data,
+  });
+  const nearestId = nearest.guidance?.shelter._id ?? null;
+  const nearestRequestId = nearest.request?.id ?? null;
+  const hasNearest = nearestId !== null;
+  const warnings = useMemo(() => shelterWarnings(shelters.data ?? [], incidents.data ?? []), [shelters.data, incidents.data]);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("all");
   // null = closed, { shelter: null } = adding, { shelter } = editing
@@ -32,12 +47,14 @@ export default function SheltersView() {
   const isOrg = user?.role === "organization";
 
   const rows = useMemo(() => {
-    const list = (shelters.data ?? []).map((shelter) => ({
-      shelter,
-      distanceKm: place.location
-        ? distanceKm(place.location, { lng: shelter.location.coordinates[0], lat: shelter.location.coordinates[1] })
-        : null,
-    }));
+    const list = (shelters.data ?? []).map((shelter) => {
+      const point = { lng: shelter.location.coordinates[0], lat: shelter.location.coordinates[1] };
+      return {
+        shelter,
+        distanceKm: place.location ? distanceKm(place.location, point) : null,
+        direction: place.location ? compassDirection(bearingDegrees(place.location, point)) : null,
+      };
+    });
     return place.location ? list.sort((a, b) => a.distanceKm - b.distanceKm) : list;
   }, [shelters.data, place.location]);
 
@@ -58,6 +75,22 @@ export default function SheltersView() {
 
   const waiting = shelters.loading && !shelters.data;
   const failed = !shelters.data && !waiting;
+
+  // After "Nearest shelter" answers, bring its card into view. Once per press,
+  // not on every refresh.
+  useEffect(() => {
+    if (!hasNearest) return;
+    const card = document.querySelector(`[data-shelter-id="${nearestId}"]`);
+    card?.scrollIntoView({ block: "center", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- scroll only when a new request was answered
+  }, [nearestRequestId, hasNearest]);
+
+  function handleNearest() {
+    // The answer must not be hidden by a filter or a search left over.
+    setQuery("");
+    setStatus("all");
+    nearest.find();
+  }
 
   function handleSaved(shelter, kind) {
     setModal(null);
@@ -83,6 +116,19 @@ export default function SheltersView() {
             className="w-full rounded-2xl border border-line-strong bg-white/5 py-3 pr-4 pl-12 text-ink transition-colors duration-150 placeholder:text-ink-muted/70 hover:border-white/25 focus:border-brand-to"
           />
         </div>
+        <button
+          type="button"
+          onClick={handleNearest}
+          disabled={nearest.busy || !shelters.data}
+          className="flex items-center justify-center gap-2 rounded-2xl border border-line-strong bg-white/5 px-5 py-3 font-display font-bold transition-all duration-150 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-70 motion-safe:active:scale-95"
+        >
+          {nearest.busy ? (
+            <LoaderCircle className="size-5 motion-safe:animate-spin" aria-hidden="true" />
+          ) : (
+            <Compass className="size-5 text-safe" aria-hidden="true" />
+          )}
+          {nearest.busy ? "Finding…" : "Nearest shelter"}
+        </button>
         {isOrg && (
           <button
             type="button"
@@ -94,6 +140,25 @@ export default function SheltersView() {
           </button>
         )}
       </div>
+
+      {nearest.request && nearest.request.phase !== "locating" && (
+        <div className="mt-4">
+          <NearestPanel
+            request={nearest.request}
+            guidance={nearest.guidance}
+            incidentsKnown={nearest.incidentsKnown}
+            onClear={nearest.clear}
+            onRetry={nearest.find}
+          >
+            {nearest.guidance && (
+              <Link href="/map?nearest=1" className={nearestPanelButtonClass}>
+                <MapIcon className="size-3.5" aria-hidden="true" />
+                Show the line on the map
+              </Link>
+            )}
+          </NearestPanel>
+        </div>
+      )}
 
       <div role="group" aria-label="Filter by status" className="mt-4 flex flex-wrap gap-2">
         {FILTERS.map(({ value, label }) => {
@@ -148,11 +213,14 @@ export default function SheltersView() {
         )}
         {visible.length > 0 && (
           <div className="grid gap-4 @2xl:grid-cols-2">
-            {visible.map(({ shelter, distanceKm: distance }) => (
+            {visible.map(({ shelter, distanceKm: distance, direction }) => (
               <ShelterCard
                 key={shelter._id}
                 shelter={shelter}
                 distanceKm={distance}
+                direction={direction}
+                warning={warnings.get(shelter._id)}
+                isNearest={shelter._id === nearestId}
                 canEdit={isOrg && !shelter.seeded && shelter.createdBy === user._id}
                 onEdit={(target) => setModal({ shelter: target })}
               />

@@ -1,4 +1,4 @@
-import { CircleAlert, HousePlus, Info, LoaderCircle, LocateFixed, MapPinOff, RefreshCw, TriangleAlert } from "lucide-react";
+import { CircleAlert, Compass, HousePlus, Info, LoaderCircle, LocateFixed, MapPinOff, RefreshCw, TriangleAlert } from "lucide-react";
 import { ErrorState } from "@/components/home/states";
 import { toneClasses } from "@/components/home/tones";
 import { LEGEND_ITEMS } from "./mapMeta";
@@ -77,17 +77,36 @@ function LocateButton({ onClick, locating }) {
   );
 }
 
-// Bottom edge: legend + filters, and "My location" above them on a phone
-// (beside them from md up). `bottom-9` keeps clear of the attribution.
-export function BottomControls({ filters, counts, onToggle, onLocate, locating }) {
+function NearestButton({ onClick, busy, disabled }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={busy || disabled}
+      className={`flex h-12 shrink-0 items-center gap-2 rounded-full px-5 text-sm font-bold text-ink transition-all duration-150 hover:bg-white/10 disabled:opacity-70 motion-safe:active:scale-95 ${GLASS}`}
+    >
+      {busy ? (
+        <LoaderCircle className="size-5 motion-safe:animate-spin" aria-hidden="true" />
+      ) : (
+        <Compass className="size-5 text-safe" aria-hidden="true" />
+      )}
+      {busy ? "Finding…" : "Nearest shelter"}
+    </button>
+  );
+}
+
+// Bottom edge: legend + filters, and the two location buttons above them on a
+// phone (beside them from md up). `bottom-9` keeps clear of the attribution.
+export function BottomControls({ filters, counts, onToggle, onLocate, locating, onNearest, findingNearest, nearestEnabled }) {
   return (
     <div className="pointer-events-none absolute inset-x-3 bottom-9 z-10 flex flex-col-reverse items-end gap-2 md:inset-x-4 md:flex-row md:justify-between">
       <div className={`pointer-events-auto flex w-full flex-col gap-2.5 rounded-2xl p-2.5 md:w-auto md:max-w-md ${GLASS}`}>
         <FilterChips filters={filters} counts={counts} onToggle={onToggle} />
         <Legend />
       </div>
-      <div className="pointer-events-auto">
+      <div className="pointer-events-auto flex flex-col items-end gap-2 md:flex-row-reverse md:items-center">
         <LocateButton onClick={onLocate} locating={locating} />
+        <NearestButton onClick={onNearest} busy={findingNearest} disabled={!nearestEnabled} />
       </div>
     </div>
   );
@@ -117,9 +136,10 @@ function Notice({ icon: Icon, tone = "info", children, action }) {
 //   baseMapMissing   the .pmtiles file isn't there (see docs/OFFLINE_MAP.md)
 //   outsideCoverage  the view is outside the offline tiles
 //   empty            loaded fine, but nothing to plot
-export function TopNotices({ loading, problem, baseMapMissing, outsideCoverage, empty }) {
+export function TopNotices({ loading, problem, baseMapMissing, outsideCoverage, empty, children }) {
   return (
-    <div className="pointer-events-none absolute inset-x-3 top-3 z-10 flex flex-col items-center gap-2 md:inset-x-16">
+    // pr-12 keeps the panels clear of the zoom buttons at the top right on a phone.
+    <div className="pointer-events-none absolute inset-x-3 top-3 z-10 flex flex-col items-center gap-2 pr-12 md:inset-x-16 md:pr-0">
       {loading && (
         <Notice icon={LoaderCircle} tone="info">
           <span className="motion-safe:animate-pulse">Loading incidents and shelters…</span>
@@ -158,6 +178,7 @@ export function TopNotices({ loading, problem, baseMapMissing, outsideCoverage, 
           Nothing to show yet. Active incidents and shelters will appear here as they are added.
         </Notice>
       )}
+      {children}
     </div>
   );
 }

@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "check:triage": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/check-triage.mjs",
+    "check:nearest": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/check-nearest.mjs",
     "seed:shelters": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/seed-shelters.mjs",
     "start:lan": "node scripts/lan.mjs",
     "lan:url": "node scripts/lan.mjs --print",

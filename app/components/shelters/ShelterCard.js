@@ -1,20 +1,38 @@
 import Link from "next/link";
-import { Map as MapIcon, MapPin, Pencil, Phone } from "lucide-react";
+import { Compass, Map as MapIcon, MapPin, Pencil, Phone } from "lucide-react";
 import Card from "@/components/Card";
 import { toneClasses } from "@/components/home/tones";
 import { formatDistance } from "@/lib/geo";
 import { mapHref } from "@/lib/mapFocus";
 import CapacityBar from "./CapacityBar";
+import NearIncidentBadge from "./NearIncidentBadge";
 import { SHELTER_STATUS_META } from "./statusMeta";
 
-// One shelter: status, how full it is, how far away, and (for the organization
-// that added it) an edit button.
-export default function ShelterCard({ shelter, distanceKm, canEdit, onEdit }) {
+// One shelter: status, how full it is, how far away and in which direction, a
+// warning when an active high or critical incident is within 2 km, and (for the
+// organization that added it) an edit button.
+//   direction  "N" ... "NW" from the person to the shelter, or null
+//   warning    { count, nearestKm } from shelterWarnings(), or undefined
+//   isNearest  this is the shelter "Nearest shelter" picked
+export default function ShelterCard({ shelter, distanceKm, direction = null, warning, isNearest = false, canEdit, onEdit }) {
   const { name, address, capacity, occupied, status, contactPhone, seeded } = shelter;
   const meta = SHELTER_STATUS_META[status] ?? SHELTER_STATUS_META.open;
 
   return (
-    <Card as="article" padded={false} lift className="flex flex-col gap-4 p-5" data-shelter-id={shelter._id}>
+    <Card
+      as="article"
+      padded={false}
+      lift
+      className={`flex flex-col gap-4 p-5 ${isNearest ? "ring-2 ring-safe/70" : ""}`}
+      data-shelter-id={shelter._id}
+      data-nearest={isNearest ? "true" : undefined}
+    >
+      {isNearest && (
+        <p className="-mb-1 flex items-center gap-2 text-xs font-bold tracking-wide text-safe uppercase">
+          <Compass className="size-4" aria-hidden="true" />
+          Nearest open shelter
+        </p>
+      )}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="font-display text-lg leading-snug font-bold">{name}</h3>
@@ -30,11 +48,17 @@ export default function ShelterCard({ shelter, distanceKm, canEdit, onEdit }) {
 
       <CapacityBar capacity={capacity} occupied={occupied} status={status} />
 
+      {warning && (
+        <p>
+          <NearIncidentBadge warning={warning} withDistance />
+        </p>
+      )}
+
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-ink-muted">
         {distanceKm !== null && (
           <span className="flex items-center gap-1.5">
             <MapPin className="size-4" aria-hidden="true" />
-            {formatDistance(distanceKm)} away
+            {formatDistance(distanceKm)} away{direction ? ` · ${direction}` : ""}
           </span>
         )}
         {contactPhone && (

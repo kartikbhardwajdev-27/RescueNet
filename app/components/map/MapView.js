@@ -9,10 +9,13 @@ import { LngLatBounds, Map as MapLibreMap, Marker, NavigationControl, Popup } fr
 import Card from "@/components/Card";
 import { useToast } from "@/components/SosProvider";
 import usePolledResource from "@/components/usePolledResource";
+import useNearestShelter from "@/components/useNearestShelter";
 import useUserLocation from "@/components/useUserLocation";
+import NearestPanel, { nearestPanelButtonClass } from "@/components/shelters/NearestPanel";
 import { fetchIncidents, fetchShelters } from "@/lib/api";
-import { describeLocationError, getCurrentLocation } from "@/lib/geo";
+import { describeLocationError, formatDistance, getCurrentLocation } from "@/lib/geo";
 import { parseFocus } from "@/lib/mapFocus";
+import { shelterWarnings } from "@/lib/nearest";
 import { BottomControls, LoadFailed, MapUnavailable, TopNotices } from "./MapOverlays";
 import PopupCard from "./PopupCard";
 import {
@@ -23,6 +26,8 @@ import {
   FOCUS_ZOOM,
   insideCoverage,
   MAX_ZOOM,
+  NEAREST_LAYER,
+  NEAREST_SOURCE,
   SOURCE_ID,
 } from "./mapConfig";
 import { MAP_CARD_SIZE } from "./mapLayout";
@@ -39,6 +44,15 @@ const FIT_PADDING = {
   wide: { top: 72, bottom: 120, left: 80, right: 80 },
 };
 
+// Fitting the person and the nearest shelter in view: more room at the top for
+// the guidance panel, and at the bottom for the controls.
+const GUIDANCE_PADDING = {
+  compact: { top: 210, bottom: 230, left: 40, right: 40 },
+  wide: { top: 190, bottom: 130, left: 100, right: 100 },
+};
+
+const EMPTY_LINE = { type: "FeatureCollection", features: [] };
+
 const hasSettled = (resource) => !(resource.loading && !resource.data);
 
 // The live map: the Protomaps dark basemap read from a local file, with the
@@ -54,7 +68,9 @@ export default function MapView() {
   const place = useUserLocation();
   const showToast = useToast();
 
-  const focus = parseFocus(useSearchParams().get("focus"));
+  const searchParams = useSearchParams();
+  const focus = parseFocus(searchParams.get("focus"));
+  const autoNearest = searchParams.get("nearest") === "1";
   const focusRaw = focus?.raw ?? null;
   const focusKind = focus?.kind ?? null;
   const focusId = focus?.id ?? null;
@@ -74,6 +90,8 @@ export default function MapView() {
   const markersRef = useRef(new Map()); // "kind:id" -> { marker, signature }
   const userMovedRef = useRef(false); // the person has moved the map themselves
   const cameraDoneRef = useRef(null); // which camera move (focus link or fit) already ran
+  const guidanceFitRef = useRef(null); // the "Nearest shelter" request the camera already moved for
+  const autoNearestRef = useRef(false); // /map?nearest=1 has been acted on
 
   // ---- data ----
 
@@ -102,6 +120,17 @@ export default function MapView() {
   const device = fix ?? (place.source === "device" ? place.location : null);
   const deviceLng = device?.lng ?? null;
   const deviceLat = device?.lat ?? null;
+
+  // ---- nearest shelter ----
+
+  const nearest = useNearestShelter({ device, shelters: shelters.data, incidents: incidents.data });
+  const { guidance } = nearest;
+  const warnings = useMemo(() => shelterWarnings(shelterList, incidents.data ?? []), [shelterList, incidents.data]);
+  const guidanceFrom = guidance?.from ?? null;
+  const guidanceTarget = guidance?.target ?? null;
+  const guidanceTargetId = guidance?.shelter._id ?? null;
+  const guidanceSaved = guidance?.source === "saved";
+  const guidanceLabel = guidance ? `${formatDistance(guidance.distanceKm)}${guidance.direction ? ` ${guidance.direction}` : ""}` : null;
 
   // ---- the map ----
 
@@ -216,6 +245,89 @@ export default function MapView() {
     return () => marker.remove();
   }, [mapInstance, deviceLng, deviceLat]);
 
+  // The dashed straight line from the person to the nearest shelter. The source
+  // and layers are added once the style is ready; the line itself follows the
+  // guidance. (They go away with the map, so there is nothing to clean up.)
+  useEffect(() => {
+    if (!mapInstance || mapInstance.getSource(NEAREST_SOURCE)) return;
+    mapInstance.addSource(NEAREST_SOURCE, { type: "geojson", data: EMPTY_LINE });
+    // A dark band under the dashes keeps them readable over roads and parks.
+    mapInstance.addLayer({
+      id: `${NEAREST_LAYER}-casing`,
+      type: "line",
+      source: NEAREST_SOURCE,
+      paint: { "line-color": "#000000", "line-opacity": 0.55, "line-width": 7 },
+    });
+    mapInstance.addLayer({
+      id: NEAREST_LAYER,
+      type: "line",
+      source: NEAREST_SOURCE,
+      layout: { "line-cap": "butt", "line-join": "round" },
+      paint: { "line-color": "#34d399", "line-width": 4, "line-dasharray": [1.4, 1.1] },
+    });
+  }, [mapInstance]);
+
+  useEffect(() => {
+    const source = mapInstance?.getSource(NEAREST_SOURCE);
+    if (!source) return;
+    source.setData(
+      guidance ? { type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: guidance.line } } : EMPTY_LINE,
+    );
+  }, [mapInstance, guidance]);
+
+  // "850 m SW" half way along the line, and a marker for a saved location (the
+  // blue dot only ever shows a position the browser gave us).
+  const midLng = guidanceFrom && guidanceTarget ? (guidanceFrom.lng + guidanceTarget.lng) / 2 : null;
+  const midLat = guidanceFrom && guidanceTarget ? (guidanceFrom.lat + guidanceTarget.lat) / 2 : null;
+  useEffect(() => {
+    if (!mapInstance || midLng === null) return;
+    const label = document.createElement("div");
+    label.className = "rn-line-label";
+    label.textContent = guidanceLabel;
+    label.setAttribute("aria-hidden", "true");
+    const marker = new Marker({ element: label }).setLngLat([midLng, midLat]).addTo(mapInstance);
+    return () => marker.remove();
+  }, [mapInstance, midLng, midLat, guidanceLabel]);
+
+  const fromLng = guidanceFrom?.lng ?? null;
+  const fromLat = guidanceFrom?.lat ?? null;
+  useEffect(() => {
+    if (!mapInstance || fromLng === null || !guidanceSaved) return;
+    const element = createUserMarker();
+    element.setAttribute("aria-label", "Your saved location");
+    const marker = new Marker({ element }).setLngLat([fromLng, fromLat]).addTo(mapInstance);
+    return () => marker.remove();
+  }, [mapInstance, fromLng, fromLat, guidanceSaved]);
+
+  // A ring on the recommended shelter's marker.
+  useEffect(() => {
+    for (const [key, { marker }] of markersRef.current) {
+      marker.getElement().classList.toggle("is-nearest", guidanceTargetId !== null && key === `shelter:${guidanceTargetId}`);
+    }
+  }, [mapInstance, markerItems, guidanceTargetId]);
+
+  // Show the person and the shelter together: once per press of the button, not
+  // on every 30-second refresh.
+  const requestId = nearest.request?.id ?? null;
+  useEffect(() => {
+    if (!mapInstance || !guidance) {
+      if (!guidance) guidanceFitRef.current = null;
+      return;
+    }
+    if (guidanceFitRef.current === requestId) return;
+    guidanceFitRef.current = requestId;
+    const compact = containerRef.current.clientWidth < COMPACT_WIDTH;
+    const bounds = new LngLatBounds([guidance.from.lng, guidance.from.lat], [guidance.from.lng, guidance.from.lat]).extend([
+      guidance.target.lng,
+      guidance.target.lat,
+    ]);
+    mapInstance.fitBounds(bounds, {
+      padding: compact ? GUIDANCE_PADDING.compact : GUIDANCE_PADDING.wide,
+      maxZoom: FOCUS_ZOOM,
+      duration: 700,
+    });
+  }, [mapInstance, guidance, requestId]);
+
   // ---- camera: a deep link, else fit the data ----
 
   const dataReady = hasSettled(incidents) && hasSettled(shelters);
@@ -254,6 +366,14 @@ export default function MapView() {
       duration: 700,
     });
   }, [mapInstance, dataReady, focusRaw, focusKind, focusId, incidentsLoaded, sheltersLoaded, activeIncidents, shelterList, showToast]);
+
+  // /map?nearest=1 (from the Shelters page) asks for the nearest shelter once the data is in.
+  const { find: findNearest } = nearest;
+  useEffect(() => {
+    if (!autoNearest || autoNearestRef.current || !mapInstance || !dataReady) return;
+    autoNearestRef.current = true;
+    findNearest();
+  }, [autoNearest, mapInstance, dataReady, findNearest]);
 
   // ---- controls ----
 
@@ -303,6 +423,15 @@ export default function MapView() {
       setLocating(false);
     }
   }, [mapInstance, device, flyToPerson, showToast]);
+
+  const handleNearest = useCallback(() => {
+    if (!shelters.data) {
+      showToast("Shelters are still loading. Try again in a moment.", { kind: "error" });
+      return;
+    }
+    setSelected(null);
+    findNearest();
+  }, [shelters.data, findNearest, showToast]);
 
   const retry = useCallback(
     (resources) => () => {
@@ -359,11 +488,34 @@ export default function MapView() {
             baseMapMissing={baseMapMissing}
             outsideCoverage={outsideCoverage}
             empty={empty}
-          />
+          >
+            <NearestPanel
+              request={nearest.request}
+              guidance={guidance}
+              incidentsKnown={nearest.incidentsKnown}
+              onClear={nearest.clear}
+              onRetry={nearest.find}
+            >
+              {guidance && (
+                <button type="button" onClick={() => setSelected({ kind: "shelter", id: guidance.shelter._id })} className={nearestPanelButtonClass}>
+                  Shelter details
+                </button>
+              )}
+            </NearestPanel>
+          </TopNotices>
           {noData && (
             <LoadFailed message={incidents.error ?? shelters.error} onRetry={retry([incidents, shelters])} />
           )}
-          <BottomControls filters={filters} counts={counts} onToggle={toggleFilter} onLocate={handleLocate} locating={locating} />
+          <BottomControls
+            filters={filters}
+            counts={counts}
+            onToggle={toggleFilter}
+            onLocate={handleLocate}
+            locating={locating}
+            onNearest={handleNearest}
+            findingNearest={nearest.busy}
+            nearestEnabled={Boolean(shelters.data)}
+          />
         </>
       )}
 
@@ -372,6 +524,7 @@ export default function MapView() {
           <PopupCard
             kind={selected.kind}
             record={selectedRecord}
+            warning={selected.kind === "shelter" ? warnings.get(selected.id) : undefined}
             now={popupSource.fetchedAt ?? 0}
             onClose={closeSelected}
           />,

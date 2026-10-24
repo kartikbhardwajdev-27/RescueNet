@@ -69,6 +69,7 @@ export function distanceKm(a, b) {
 
 // "850 m", "1.2 km", "14 km".
 export function formatDistance(km) {
-  if (km < 1) return `${Math.max(10, Math.round((km * 1000) / 10) * 10)} m`;
-  return km < 10 ? `${km.toFixed(1)} km` : `${Math.round(km)} km`;
+  // Under 995 m, because anything above rounds up to "1000 m" at the nearest 10.
+  if (km < 0.995) return `${Math.max(10, Math.round((km * 1000) / 10) * 10)} m`;
+  return km < 9.95 ? `${km.toFixed(1)} km` : `${Math.round(km)} km`;
 }

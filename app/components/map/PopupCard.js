@@ -3,6 +3,7 @@ import { toneClasses } from "@/components/home/tones";
 import SosBadge from "@/components/incidents/SosBadge";
 import { incidentKindMeta } from "@/components/incidentMeta";
 import CapacityBar from "@/components/shelters/CapacityBar";
+import NearIncidentBadge from "@/components/shelters/NearIncidentBadge";
 import { SHELTER_STATUS_META } from "@/components/shelters/statusMeta";
 import { formatRelativeTime, incidentTime } from "@/lib/time";
 import { incidentStatusMeta, severityMeta } from "./mapMeta";
@@ -74,7 +75,7 @@ function IncidentDetails({ incident, now, onClose }) {
   );
 }
 
-function ShelterDetails({ shelter, onClose }) {
+function ShelterDetails({ shelter, warning, onClose }) {
   const status = SHELTER_STATUS_META[shelter.status] ?? SHELTER_STATUS_META.open;
 
   return (
@@ -100,6 +101,11 @@ function ShelterDetails({ shelter, onClose }) {
       <div className="mt-3">
         <CapacityBar capacity={shelter.capacity} occupied={shelter.occupied} status={shelter.status} />
       </div>
+      {warning && (
+        <p className="mt-3">
+          <NearIncidentBadge warning={warning} withDistance />
+        </p>
+      )}
       {shelter.contactPhone && (
         <a
           href={`tel:${shelter.contactPhone.replace(/[^\d+]/g, "")}`}
@@ -115,13 +121,13 @@ function ShelterDetails({ shelter, onClose }) {
 
 // The card inside the map popup. `now` is when the data arrived, so the
 // "reported X ago" text is stable between refreshes (see lib/time.js).
-export default function PopupCard({ kind, record, now, onClose }) {
+export default function PopupCard({ kind, record, warning, now, onClose }) {
   return (
     <div className="w-[min(20rem,calc(100vw-3rem))] p-4">
       {kind === "incident" ? (
         <IncidentDetails incident={record} now={now} onClose={onClose} />
       ) : (
-        <ShelterDetails shelter={record} onClose={onClose} />
+        <ShelterDetails shelter={record} warning={warning} onClose={onClose} />
       )}
     </div>
   );
