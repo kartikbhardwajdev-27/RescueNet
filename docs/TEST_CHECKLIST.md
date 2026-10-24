@@ -263,6 +263,47 @@ new ones at `/register`:
     with the line already drawn.
   - **Automated check: passed.**
 
+## 8. Resources and About (Step 16)
+
+- [ ] **8.1 Verify the emergency numbers.** This one is on you: I cannot check them.
+  1. Open **Resources**.
+  2. Look at the four numbers: **112** national emergency, **100** police, **101**
+     fire, **108** ambulance.
+  - **Expected:** each is correct for where you will demo, and 108 really is the
+    ambulance number there (it differs in a few states). Edit
+    `app/components/resources/resourceData.js` if not. A `TODO: verify these
+    numbers before the demo` comment sits above the list in that file.
+  - **Automated check: passed** that exactly these four numbers appear, each as a
+    tap-to-call link. **Not verified at all:** that the numbers are right.
+
+- [ ] **8.2 Tap to call on a phone.**
+  1. Open `http://<laptop-ip>:3000/resources` on a phone. Tap **112**. **Cancel
+     the call** when the dialler opens (do not actually call).
+  - **Expected:** the phone's dialler opens with the number filled in.
+  - **Automated check: not run** (headless Chrome cannot dial; I only checked the
+    links are `tel:112`, `tel:100`, `tel:101`, `tel:108`).
+
+- [ ] **8.3 Read the guides.** Flood, Fire, Earthquake and Basic first aid, one
+  screen each.
+  - **Expected:** short, sensible steps; the note "General guidance. Follow
+    instructions from local authorities." at the top and the bottom; no medicine
+    names or doses anywhere. Tell me about anything you would not stand behind.
+  - **Automated check: passed** for the note, the four guides and "no medicine
+    words". **Not verified at all:** that the advice suits your region (a doctor or
+    your local disaster authority should read it before anyone relies on it).
+
+- [ ] **8.4 Works with the server stopped.**
+  1. Production server running; visit Resources and About once; wait 10 seconds.
+  2. app server tab: Ctrl+C. Reload both pages.
+  - **Expected:** both still open. Start the server again afterwards.
+  - **Automated check: passed.**
+
+- [ ] **8.5 Fill in the About page team block.** The "Team and project" section
+  shows a dashed amber **TODO: to be added** box. I did not invent any names.
+  Edit `app/app/about/page.js` (the comment above that section says what to add).
+  - **Expected:** no TODO box left when you demo.
+  - **Not verified at all:** only you can fill it in.
+
 ---
 
 ## Not finished
