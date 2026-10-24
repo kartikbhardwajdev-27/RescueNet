@@ -4,6 +4,7 @@ import ensureIndexes from "@/lib/ensureIndexes";
 import { errorResponse, readJsonBody } from "@/lib/http";
 import { REPLAY_HEADERS, clientIdFor, isDuplicateKeyError, readIdempotencyKey } from "@/lib/idempotency";
 import { rateLimit } from "@/lib/rateLimit";
+import { scoreDescription } from "@/lib/triage";
 import { validateSosInput } from "@/lib/validation";
 import Incident from "@/models/Incident";
 
@@ -43,9 +44,12 @@ export async function POST(request) {
   const user = await getCurrentUser();
 
   await connectDB();
+  // Only the person's own words are scored, not the fixed "SOS alert" prefix.
+  const { score, reasons } = scoreDescription(data.message);
   let incident;
   try {
     incident = await Incident.create({
+      triage: { score, reasons },
       type: "other",
       severity: "critical",
       status: "reported",

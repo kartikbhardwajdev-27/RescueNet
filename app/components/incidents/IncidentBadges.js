@@ -14,3 +14,10 @@ export function StatusBadge({ status }) {
   const { label, tone } = incidentStatusMeta(status);
   return <span className={badge(tone)}>{label}</span>;
 }
+
+// The level alone ("High"), used where the word "severity" would be wrong, such
+// as a suggested priority.
+export function PriorityBadge({ severity }) {
+  const { label, tone } = severityMeta(severity);
+  return <span className={badge(tone)}>{label}</span>;
+}

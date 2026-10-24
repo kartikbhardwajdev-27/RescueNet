@@ -20,6 +20,15 @@ const incidentSchema = new mongoose.Schema(
     // A missing field is how old alerts are recognised (see isSosIncident in
     // lib/incidentRules.js).
     isSos: { type: Boolean },
+    // "Suggested priority": the keyword score of the description and the
+    // keywords that earned it (lib/triage.js). Worked out by the server when the
+    // report arrives, never taken from the request. Absent on older incidents,
+    // so no defaults here (an empty `reasons` array would otherwise be added to
+    // every old document the moment it is loaded).
+    triage: {
+      score: { type: Number, min: 0, max: 100 },
+      reasons: { type: [String], default: undefined },
+    },
     // Optional so anonymous reports are allowed.
     reportedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     // When the person actually submitted it, as reported by their device. Absent

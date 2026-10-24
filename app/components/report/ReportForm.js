@@ -12,6 +12,7 @@ import { describeLocationError, getCurrentLocation } from "@/lib/geo";
 import { INCIDENT_SEVERITIES, INCIDENT_TYPES, MAX_DESCRIPTION_LENGTH } from "@/lib/incidentRules";
 import { submitToOutbox } from "@/lib/outbox";
 import ReportConfirmation from "./ReportConfirmation";
+import SuggestedPriority from "./SuggestedPriority";
 
 const SEVERITY_HELP = {
   low: "Minor. Nobody is in immediate danger.",
@@ -231,6 +232,11 @@ export default function ReportForm() {
             >
               {values.description.length} / {MAX_DESCRIPTION_LENGTH}
             </p>
+            <SuggestedPriority
+              description={values.description}
+              severity={values.severity}
+              onApply={(severity) => setField("severity", severity)}
+            />
           </Field>
 
           <fieldset className="rounded-2xl border border-line bg-white/5 p-4 sm:p-5">

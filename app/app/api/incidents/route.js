@@ -4,10 +4,37 @@ import ensureIndexes from "@/lib/ensureIndexes";
 import { errorResponse, readJsonBody } from "@/lib/http";
 import { REPLAY_HEADERS, clientIdFor, isDuplicateKeyError, readIdempotencyKey } from "@/lib/idempotency";
 import { rateLimit } from "@/lib/rateLimit";
+import { PRIORITY_SEVERITY_WEIGHT, SOS_PRIORITY_BONUS, scoreDescription } from "@/lib/triage";
 import { parseIncidentQuery, validateIncidentInput } from "@/lib/validation";
 import Incident from "@/models/Incident";
 
 const replay = (existing) => Response.json(existing, { status: 200, headers: REPLAY_HEADERS });
+
+// sort=priority, worked out inside MongoDB so the limit applies after sorting.
+// The same sum as priorityOf() in lib/triage.js: the reporter's severity, plus
+// the stored keyword score (0 on older incidents), plus a bonus for an SOS
+// alert. Resolved incidents go last. An aggregation skips the schema, so the
+// private clientId is removed by hand.
+function priorityPipeline(filter, limit) {
+  return [
+    { $match: filter },
+    {
+      $addFields: {
+        _open: { $cond: [{ $eq: ["$status", "resolved"] }, 0, 1] },
+        _priority: {
+          $add: [
+            { $switch: { branches: Object.entries(PRIORITY_SEVERITY_WEIGHT).map(([severity, weight]) => ({ case: { $eq: ["$severity", severity] }, then: weight })), default: 0 } },
+            { $ifNull: ["$triage.score", 0] },
+            { $cond: [{ $eq: ["$isSos", true] }, SOS_PRIORITY_BONUS, 0] },
+          ],
+        },
+      },
+    },
+    { $sort: { _open: -1, _priority: -1, createdAt: -1, _id: -1 } },
+    { $limit: limit },
+    { $project: { _open: 0, _priority: 0, clientId: 0 } },
+  ];
+}
 
 // With an Idempotency-Key header (sent by the offline queue) a repeat of the
 // same report returns the first one with status 200 instead of creating a
@@ -44,7 +71,9 @@ export async function POST(request) {
   try {
     // isSos is set here, after the whitelisted data, so a request can never make
     // an ordinary report an SOS.
-    incident = await Incident.create({ ...data, isSos: false, reportedBy: user?._id, clientId });
+    // triage is worked out here from the description, never read from the request.
+    const { score, reasons } = scoreDescription(data.description);
+    incident = await Incident.create({ ...data, isSos: false, triage: { score, reasons }, reportedBy: user?._id, clientId });
   } catch (err) {
     // Two copies of the same request raced; the unique index let one through.
     if (clientId && isDuplicateKeyError(err)) {
@@ -57,7 +86,7 @@ export async function POST(request) {
 }
 
 export async function GET(request) {
-  const { errors, filter, limit, mine } = parseIncidentQuery(new URL(request.url).searchParams);
+  const { errors, filter, limit, mine, sort } = parseIncidentQuery(new URL(request.url).searchParams);
   const messages = Object.values(errors);
   if (messages.length > 0) return errorResponse(400, messages[0], { errors });
 
@@ -70,8 +99,11 @@ export async function GET(request) {
   }
 
   await connectDB();
-  // _id breaks ties so equal timestamps keep a stable order.
-  const incidents = await Incident.find(filter).sort({ createdAt: -1, _id: -1 }).limit(limit).lean();
+  const incidents =
+    sort === "priority"
+      ? await Incident.aggregate(priorityPipeline(filter, limit))
+      : // _id breaks ties so equal timestamps keep a stable order.
+        await Incident.find(filter).sort({ createdAt: -1, _id: -1 }).limit(limit).lean();
   // A person's own list is personal: keep it out of any shared cache.
   return Response.json(incidents, mine ? { headers: { "Cache-Control": "no-store" } } : undefined);
 }

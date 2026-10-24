@@ -124,6 +124,10 @@ const MAX_SOS_MESSAGE_LENGTH = 500;
 
 export const UPDATABLE_STATUSES = ["in_progress", "resolved"];
 
+// recent: newest first (the default). priority: open incidents before resolved
+// ones, then by how much attention they need (see lib/triage.js), then newest.
+export const INCIDENT_SORTS = ["recent", "priority"];
+
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 200;
 const DEFAULT_RADIUS_KM = 10;
@@ -276,10 +280,11 @@ function readNear(params, errors) {
   return errors.near || errors.radiusKm ? null : { lng, lat, radiusKm };
 }
 
-// GET /api/incidents query string -> { errors, filter, limit, mine }. Incidents
-// stay newest first, so `near` is a plain "within radius" filter. `mine=true`
-// asks for only the logged-in user's own reports; the route turns that into a
-// filter on the session's user id (never on anything in the query string).
+// GET /api/incidents query string -> { errors, filter, limit, mine, sort }.
+// Incidents are newest first unless `sort=priority` is asked for, so `near` is
+// a plain "within radius" filter. `mine=true` asks for only the logged-in
+// user's own reports; the route turns that into a filter on the session's user
+// id (never on anything in the query string).
 export function parseIncidentQuery(params) {
   const errors = {};
   const filter = {};
@@ -288,6 +293,13 @@ export function parseIncidentQuery(params) {
   const rawMine = params.get("mine");
   if (rawMine === "true") mine = true;
   else if (rawMine !== null && rawMine !== "false") errors.mine = "mine must be true or false";
+
+  let sort = "recent";
+  const rawSort = params.get("sort");
+  if (rawSort !== null) {
+    if (INCIDENT_SORTS.includes(rawSort)) sort = rawSort;
+    else errors.sort = `sort must be one of: ${INCIDENT_SORTS.join(", ")}`;
+  }
 
   readEnumFilters(params, errors, filter, [
     ["status", INCIDENT_STATUSES],
@@ -300,7 +312,7 @@ export function parseIncidentQuery(params) {
     filter.location = { $geoWithin: { $centerSphere: [[near.lng, near.lat], near.radiusKm / EARTH_RADIUS_KM] } };
   }
 
-  return { errors, filter, limit, mine };
+  return { errors, filter, limit, mine, sort };
 }
 
 // GET /api/shelters query string -> { errors, filter, limit, nearest }.

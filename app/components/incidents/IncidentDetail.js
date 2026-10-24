@@ -4,7 +4,7 @@ import { useCallback, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CalendarClock, CircleCheck, Hash, Map as MapIcon, MapPin, Play, SearchX, UserRound } from "lucide-react";
+import { ArrowLeft, CalendarClock, CircleCheck, Hash, Lightbulb, Map as MapIcon, MapPin, Play, SearchX, UserRound } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import Card from "@/components/Card";
 import { ErrorState, Skeleton } from "@/components/home/states";
@@ -14,7 +14,9 @@ import usePolledResource from "@/components/usePolledResource";
 import { fetchIncident, incidentReference, updateIncidentStatus } from "@/lib/api";
 import { mapHref } from "@/lib/mapFocus";
 import { formatRelativeTime, incidentTime } from "@/lib/time";
-import { SeverityBadge, StatusBadge } from "./IncidentBadges";
+import { severityFromScore } from "@/lib/triage";
+import { PriorityBadge, SeverityBadge, StatusBadge } from "./IncidentBadges";
+import { describeReasons } from "./priorityText";
 import SosBadge from "./SosBadge";
 
 // MapLibre needs the browser, so the little map is loaded on demand.
@@ -84,6 +86,28 @@ function Loading() {
       <Skeleton className="mt-6 h-20" />
       <Skeleton className="mt-6 h-56" />
     </Card>
+  );
+}
+
+// Why the words of a report earned a suggested priority. Shown only when some
+// of them did (older incidents have no score, and many reports have no keyword).
+// These are plain keyword rules: it says which words, not that anyone checked.
+function SuggestedPriorityNote({ triage }) {
+  const reasons = triage?.reasons;
+  const suggested = typeof triage?.score === "number" ? severityFromScore(triage.score) : null;
+  if (!suggested || !Array.isArray(reasons) || reasons.length === 0) return null;
+  return (
+    <div className="mt-4 rounded-2xl border border-info/30 bg-info/10 p-3.5">
+      <p className="flex flex-wrap items-center gap-2 text-sm font-bold">
+        <Lightbulb className="size-4 text-info" aria-hidden="true" />
+        Suggested priority
+        <PriorityBadge severity={suggested} />
+      </p>
+      <p className="mt-1.5 text-sm text-ink-muted">
+        Because the description {describeReasons(reasons)}. This comes from simple keyword rules, so responders still
+        decide.
+      </p>
+    </div>
   );
 }
 
@@ -207,6 +231,8 @@ export default function IncidentDetail({ id }) {
         </div>
 
         <p className="mt-5 text-ink break-words whitespace-pre-wrap">{incident.description}</p>
+
+        <SuggestedPriorityNote triage={incident.triage} />
 
         <dl className="mt-6 grid gap-5 sm:grid-cols-2">
           <Fact icon={MapPin} label="Address">
