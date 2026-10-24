@@ -1,3 +1,4 @@
+import { connection } from "next/server";
 import connectDB from "@/lib/db";
 import Incident from "@/models/Incident";
 import Shelter from "@/models/Shelter";
@@ -11,6 +12,11 @@ import Shelter from "@/models/Shelter";
 //   spacesFree       capacity minus occupied, summed over open shelters
 //   lastUpdated      when these numbers were computed
 export async function GET() {
+  // Always run at request time, never during `next build`. This route reads no
+  // cookies or request data, so without this Next.js runs the handler while
+  // prerendering: the build then fails when there is no database, and live
+  // numbers must never be baked in at build time.
+  await connection();
   await connectDB();
 
   const startOfToday = new Date();
