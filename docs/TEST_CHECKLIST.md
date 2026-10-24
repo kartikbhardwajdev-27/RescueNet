@@ -1,189 +1,229 @@
-# RescueNet: hand-test checklist
+# RescueNet: hand-test checklist (Steps 10 to 18)
 
-Everything you must try yourself once the whole app is built, in the order that
-matters most for the demo. Tick a box only when you saw the expected result.
+Everything you must try yourself, in the order that matters most for the demo.
+Tick a box only when you saw the expected result.
 
-**Status labels** (what I did, not what you should believe):
+**What the status lines mean** (what I did, not what you should believe):
 
-- **Automated check: passed** means I ran it in a real headless Chrome or with
-  curl in this build session and it did what the "Expected" line says.
-- **Automated check: not run** means I did not test it automatically.
-- **Not verified at all** means nothing I have can test it (a real phone, your
-  real WiFi switch, your own eyes).
+- **Automated check: passed**: I ran it in a real headless Chrome or with curl in
+  this build session and it did what the "Expected" line says.
+- **Automated check: not run**: I did not test it automatically.
+- **Not verified at all**: nothing I have can test it (a real phone, your real WiFi
+  switch, your own eyes and judgement).
 
 "Automated" never means a person tried it. The hand test is still yours.
 
-## Where to run things
+---
 
-- **mongod tab**: the terminal where `mongod` runs (leave it alone). If it is not
-  running: `~/mongodb/bin/mongod --dbpath ~/data/db`.
-- **app server tab**: the terminal that runs the app. For the tests below it must
-  run the **production** build (the offline features only work there):
-  stop any `npm run dev` with Ctrl+C, then
+## 0. Do these first
+
+- [ ] **0.1 Restart your app server. It is serving a stale build.**
+  The server running on port 3000 was started before my work and is still on the
+  **old build**. I rebuilt the app many times in the same folder, which replaced the
+  files that server hands out: I checked, and one of its stylesheet files now
+  answers with an error, so its pages can look unstyled or broken. I was told not to
+  touch your server, so I did not restart it. Fix:
+  1. app server tab: press **Ctrl+C**.
+  2. Then (the build is current, but rebuilding is harmless):
+     ```sh
+     cd ~/Documents/Desktop/RescueNet/app
+     npm run build
+     npm run start:lan
+     ```
+  3. In Chrome, open `http://localhost:3000`, press Cmd+Option+I, open the
+     **Application** tab, **Storage**, and press **Clear site data** once. (Your
+     browser may still hold pages saved from the old build.)
+  - **Expected:** the app looks normal, and `curl localhost:3000/api/health` prints
+    `{"status":"ok","db":"connected"}`.
+  - **Automated check: passed** for the same build on other ports. **Not verified at
+    all:** your own server (I did not touch it).
+
+- [ ] **0.2 Change the Atlas passwords. This is a real exposure, not a demo item.**
+  A teammate's `.env` with **MongoDB Atlas connection strings and passwords** is
+  committed on the **`master`** branch of the **public** GitHub repo (commit
+  `0b58cf0`, "Setup RescueNet backend"). Two Atlas accounts are in it.
+  1. Log in to Atlas (cloud.mongodb.com). Under **Database Access**, change the
+     password of every user named in that file (or delete the user), or delete the
+     cluster if nobody uses it.
+  - **Expected:** the old passwords stop working. Deleting the file from `master` is
+    **not** enough: git history keeps it.
+  - Account: the Atlas account owner (ask your teammate).
+  - **Not verified at all:** I did not touch Atlas or `master`. Details in
+    `docs/SECURITY.md`.
+
+- [ ] **0.3 Load the demo scene.**
+  new tab:
   ```sh
   cd ~/Documents/Desktop/RescueNet/app
-  npm run build
-  npm run start:lan
+  npm run demo:seed
   ```
-  The app is then at `http://localhost:3000`.
-- **new tab**: open a third terminal tab for one-off commands (`cd ~/Documents/Desktop/RescueNet/app` first).
+  - **Expected:** it prints the two logins and "Done". Home then shows 6 active
+    incidents, 4 shelters open, and 1 resolved today (0 if you seed in the first three
+    hours after midnight, because the demo's resolved incidents are "3 hours ago" and
+    older). Everything made is marked **Demo**
+    or `[DEMO]`.
+  - **Automated check: passed** (run twice: same counts; refuses a non-local
+    database; refuses if a real account has a demo email; `npm run demo:clear`
+    removes only the marked records; all on a scratch database, not yours).
 
-## Accounts
+## Accounts and terminal tabs
 
-Until `npm run demo:seed` exists (Step 18) use your own two accounts, or register
-new ones at `/register`:
+After `npm run demo:seed` use these (password for both: `demo-rescuenet-2026`):
 
-- **Citizen**: any citizen account.
-- **Organization**: an account registered with the role Organization (type NGO,
-  govt or volunteer group).
+- **Citizen:** `demo.citizen@rescuenet.test` (has a saved location in Sector 17)
+- **Organization:** `demo.org@rescuenet.test`
+
+Tip: use a normal Chrome window for the citizen and an **Incognito** window for the
+organization, so you never log in and out.
+
+- **mongod tab:** where `mongod` runs. Leave it. If it is not running:
+  `~/mongodb/bin/mongod --dbpath ~/data/db`.
+- **app server tab:** runs the app. The offline features only exist in the
+  **production** build: `npm run build` then `npm run start:lan` (stop any
+  `npm run dev` first). The app is at `http://localhost:3000`.
+- **new tab:** for one-off commands. Always `cd ~/Documents/Desktop/RescueNet/app`
+  first.
 
 ---
 
-## 1. Offline map with WiFi off (Step 10)
+# Part 1: the demo path, in demo order
 
-- [ ] **1.1 The map works with no internet.**
-  1. app server tab: production server running (see above).
-  2. Chrome: open `http://localhost:3000/map`. You should see a dark street map of
-     Chandigarh, Mohali and Panchkula, green house-shaped shelter markers, and
-     any active incidents (amber, orange or red dots).
-  3. Turn the Mac's WiFi **off** (menu bar).
-  4. Refresh the page (Cmd+R).
-  5. Click a green shelter marker.
+## 1. Full dress rehearsal (the Step 18 checkpoint)
+
+- [ ] **1.1 Run the whole 5-minute demo once, start to finish.**
+  1. Do sections 0.1 and 0.3 above.
+  2. Open `docs/DEMO_SCRIPT.md` and follow it line by line, including the WiFi-off
+     moment.
+  - **Expected:** nothing in the script fails or surprises you. Time it: it should
+    take about 5 minutes. Note anything you would change.
+  - Account: both demo accounts.
+  - **Automated check: passed** for the individual moments the script promises
+    (Recent activity starts with the SOS; stats 6 active / 1 resolved today / 4 shelters; Nearest shelter from the
+    citizen's saved location picks Mohali Phase 7, 7.3 km SW, with the amber "Near an
+    active incident" badge; four events, first-aid has 2 spaces; the citizen has
+    their own reports). **Not verified at all:** the script as one continuous run,
+    your timing, and the WiFi switch.
+
+## 2. The map with WiFi off (Step 10)
+
+- [ ] **2.1 The map works with no internet.**
+  1. Production server running. Chrome: open `http://localhost:3000/map`. You
+     should see a dark street map of Chandigarh, Mohali and Panchkula, green
+     house-shaped shelter markers, and the active incidents (amber, orange, red).
+  2. Turn the Mac's WiFi **off** (menu bar).
+  3. Refresh the page (Cmd+R). Click a green shelter marker.
   - **Expected:** the map still draws streets and labels, the markers are still
-    there, the popup shows the shelter name, a capacity bar and its status. The
+    there, and the popup shows the shelter name, a capacity bar and its status. The
     Incidents and Shelters chips hide and show markers.
   - **Expect these to fail with WiFi off (not a bug):** "My location" may say it
     cannot find you, because a Mac finds its location through WiFi.
-  - If you see "Offline map tiles are missing": the map file is not on this
-    laptop. Regenerate it with the command in `docs/OFFLINE_MAP.md` (new tab).
-  - Turn WiFi back on afterwards.
+  - If you see "Offline map tiles are missing": the map file is not on this laptop.
+    See `docs/OFFLINE_MAP.md`. Turn WiFi back on afterwards.
   - Account: none needed.
   - **Automated check: passed** for everything except the WiFi switch itself:
-    headless Chrome loaded `/map`, every network request stayed on localhost, the
-    map file answered with 206 range responses, the markers and popups appeared,
-    the Shelters chip hid the shelters, and the same worked at phone size.
+    headless Chrome loaded `/map`, every request stayed on localhost, the map file
+    answered with 206 range responses, markers and popups appeared, the Shelters chip
+    hid the shelters, and it worked at phone size too.
     **Not verified at all:** the real WiFi switch on your Mac.
 
-- [ ] **1.2 "View on map" links open the right popup.**
-  1. On Home or Shelters, click a "View on map" or "Open map" link.
-  - **Expected:** the map flies to that item and opens its popup. Active
-    incidents and shelters only: a **resolved** incident is not drawn, so its link
-    shows a small notice "That incident isn't on the map any more" (by design).
-  - **Automated check: passed** (deep links for a shelter and an active incident).
+- [ ] **2.2 "View on map" links open the right popup.**
+  1. On Home or Shelters click a "View on map" or "Open map" link.
+  - **Expected:** the map flies to that item and opens its popup. A **resolved**
+    incident is not drawn on the map, so its link shows a small notice "That
+    incident isn't on the map any more" (by design).
+  - **Automated check: passed.**
 
-## 2. Offline queue: report and SOS with the server down (Step 11)
+## 3. Offline queue: report and SOS with the server down (Step 11)
 
-- [ ] **2.1 Queue a report and an SOS, then reconnect.**
-  1. app server tab: production server running. In Chrome open
-     `http://localhost:3000`, click through Home, Report, Map, Shelters, Events,
-     Resources, About and Account once each (this is when the pages are saved on
-     your computer). Wait about 10 seconds.
+- [ ] **3.1 Queue a report and an SOS, then reconnect.**
+  1. Production server running. In Chrome open `http://localhost:3000` and click
+     through Home, Report, Map, Shelters, Events, Resources, About and Account once
+     each (this is when the pages are saved on your computer). Wait about 10
+     seconds.
   2. app server tab: press **Ctrl+C** to stop the server.
   3. Within a few seconds an amber **"You're offline"** pill appears.
-  4. Report page: fill a report (pick a type, a description, and type coordinates
-     `30.73` and `76.78`), press **Submit report**.
+  4. Report page: fill a report (a type, a description, coordinates `30.73` and
+     `76.78`), press **Submit report**.
   5. Press the red **SOS** button, then **Send**.
   6. Open **Account**. (While the server is down it may say your account can't be
      loaded right now; the saved-items list is still shown.)
   7. Reload the page (Cmd+R).
   8. app server tab: start the server again (`npm run start:lan`).
-  - **Expected:** step 4 shows a panel "Report queued" with a **Queued** badge.
-    Step 5 says "SOS queued. It will be sent when the connection returns." Step 6
-    lists both under **Saved on this device**. Step 7: the page still opens and the
-    items are still listed. After step 8, within a few seconds the pill goes away,
-    a toast says they were sent, both show **Sent**, and the SOS was sent first.
-    Open Home or the map: **one** report and **one** SOS exist, not two.
-  - Account: citizen.
-  - **Automated check: passed** (headless Chrome: service worker active, app
-    shell saved, server stopped, pill shown, `/report`, `/`, `/map`, `/shelters`,
-    `/events` still opened, a report and an SOS queued, both survived a reload,
-    and after the server came back exactly 1 report and 1 SOS arrived, the SOS
-    first, each with the time the button was pressed).
-    **Not verified at all:** your own hands and your own browser profile.
+  - **Expected:** step 4: a panel "Report queued" with a **Queued** badge. Step 5:
+    "SOS queued. It will be sent when the connection returns." Step 6: both listed
+    under **Saved on this device**. Step 7: the page still opens, the items are still
+    listed. After step 8, within a few seconds the pill goes away, a toast says they
+    were sent, both show **Sent**, and the SOS was sent first. On the map or Home:
+    **one** report and **one** SOS exist, not two.
+  - Account: any (works logged out too).
+  - **Automated check: passed** (headless Chrome: service worker active, app shell
+    saved, server stopped, pill shown, `/report`, `/`, `/map`, `/shelters`, `/events`
+    still opened, report and SOS queued and survived a reload, and after the server
+    came back exactly 1 report and 1 SOS arrived, the SOS first, each with the time
+    the button was pressed). Re-run after the security changes: still passed.
+    **Not verified at all:** your hands, your browser profile.
 
-- [ ] **2.2 WiFi off, server still running.**
-  1. app server tab: production server running.
-  2. Turn WiFi **off**.
-  3. Use the app: Home, Report, Shelters, Events.
-  - **Expected:** a **blue** pill says there is no internet but RescueNet runs on
-    its own server; everything works, and reports send normally.
-  - **Automated check: not run** (I cannot switch your WiFi). What I did check:
-    no page makes a single request outside localhost, so the internet being gone
-    cannot change anything.
+- [ ] **3.2 WiFi off, server still running.**
+  1. Production server running. Turn WiFi **off**. Use Home, Report, Shelters,
+     Events.
+  - **Expected:** a **blue** pill says there is no internet but RescueNet runs on its
+    own server; everything works and reports send normally.
+  - **Automated check: not run** (I cannot switch your WiFi). What I did check: no
+    page makes a single request outside localhost (all 17 pages, as visitor,
+    citizen and organization), so the internet being gone cannot change anything.
 
-## 3. Phone on the laptop's network (Step 11 and the cookie fix)
+## 4. Nearest shelter (Step 15)
 
-- [ ] **3.1 Open the app on a phone.**
-  1. new tab: `cd ~/Documents/Desktop/RescueNet/app && npm run lan:url` prints the
-     address, for example `http://192.168.1.6:3000`. (It changes if your WiFi
-     changes.) The app server tab must be running `npm run start:lan`.
-  2. Put the phone on the **same WiFi** as the laptop, or on the laptop's
-     hotspot. Type that address into the phone's browser.
-  3. Browse Home, Shelters, Map, Report.
-  4. **Log in** with your citizen account on the phone.
-  5. Submit a report with coordinates typed by hand.
-  - **Expected:** pages, map and shelters work. Login **works and stays logged
-    in** (this was broken before I fixed it this session: the login cookie was
-    thrown away over plain http). Reports send.
-  - **Expected limits (not bugs):** "Use my location" and the SOS location do not
-    work over plain `http://<ip>` (browsers forbid it); an SOS from a phone needs a
-    saved account location. There is no offline page cache and no "Add to Home
-    Screen" over plain http. A queued report is still sent when the connection
-    returns **while the page stays open**.
-  - **Automated check: passed** for the part I can reach: Chrome on the laptop
-    using the laptop's own LAN address `http://192.168.1.6:3100` could register,
-    stay logged in and use the app.
-    **Not verified at all:** a physical phone.
+- [ ] **4.1 On the map.**
+  1. Production server running. Chrome: open `http://localhost:3000/map`, **allow
+     location** when asked.
+  2. Press **Nearest shelter** (beside "My location"). Then press **Shelter
+     details** in the panel, and close the panel with the X.
+  - **Expected:** a dashed green line from the blue dot to one green shelter, with a
+    label such as "7.3 km SW"; a green ring around that shelter; a panel "Nearest open
+    shelter" with its name, "N spaces free", and "Straight-line distance, not a road
+    route." The shelter is **open with free spaces**: the demo "Sector 22" shelter is
+    full and "Kharar" is closed, so neither is ever chosen.
+  - Account: none needed.
+  - **Automated check: passed** (headless Chrome with a faked location in Sector 17:
+    picked Mohali Phase 7, "7.3 km south-west (SW)", label, ring, panel, details
+    button; at phone size too; plus `npm run check:nearest`, 88 checks of the
+    distance and direction maths against published values).
+    **Not verified at all:** your real location, and how the line looks on your
+    screen.
 
-## 4. Organization changes an incident's status (Step 12)
+- [ ] **4.2 The warning near an active incident.**
+  1. With the demo scene loaded, log in as the citizen, press **Nearest shelter**
+     with location blocked (padlock beside the address, Location, Block, reload).
+  2. Log in as the organization (Incognito), open the Phase 7 market fire incident
+     (Home, **Details**) and press **Mark resolved**. Reload the map in the citizen
+     window and press **Nearest shelter** again.
+  - **Expected:** step 1: the panel says "Measured from the location saved on your
+    account", the shelter is **Mohali Phase 7**, and an amber **Near an active
+    incident** badge shows (the same badge appears in that shelter's popup and on its
+    card on the Shelters page). Step 2: after resolving, the badge is gone. A medium
+    or low incident, or a high one more than 2 km away, never causes it.
+  - Account: citizen, then organization.
+  - **Automated check: passed** (1 km critical warns; 2.6 km high does not; medium
+    does not; resolved clears it; saved-location fallback works).
 
-- [ ] **4.1 Organization sets in progress and resolved.**
-  1. Log in as the **organization** account. Open Home and click **Details** on
-     an incident (or open one from Recent activity).
-  2. Press **Mark in progress**, then **Mark resolved**.
-  3. Log out. Log in as a **citizen** and open the same incident.
-  - **Expected:** the badge changes to "Response in progress", then "Resolved",
-    and the buttons say "Currently ...". The citizen sees the incident and its
-    status but **no** buttons, and an anonymous visitor does not either. A
-    resolved incident disappears from the map.
-  - Account: organization, then citizen.
-  - **Automated check: passed** (curl: anonymous 401, citizen 403, organization
-    200, invalid or extra fields 400, unknown id 404; headless Chrome clicked both
-    buttons and the status stuck on the server).
-
-- [ ] **4.2 "My reports".**
-  1. Log in as a citizen, make a report, open **Account**.
-  - **Expected:** a **My reports** list with status badges. Clicking one opens its
-    page, with a small map and a "View on map" link.
+- [ ] **4.3 No location at all.**
+  1. Logged out, location blocked: press **Nearest shelter**.
+  - **Expected:** a panel "We need your location" explaining how to allow it, with
+    **Try again**.
   - **Automated check: passed.**
 
-## 5. Events (Step 13)
+- [ ] **4.4 On the Shelters page.**
+  1. Open **Shelters** (allow location). Press **Nearest shelter**, then **Show the
+     line on the map**.
+  - **Expected:** the page scrolls to one card with a green outline and "Nearest open
+    shelter"; every card shows "x km away · direction"; the second step opens the map
+    with the line already drawn.
+  - **Automated check: passed.**
 
-- [ ] **5.1 Organization creates an event, citizens join and leave.**
-  1. Log in as the **organization**. Open **Events** (sidebar; on a phone it is in
-     the top-right menu). Press **Create event**, fill it in (pick a start time
-     in the future, set a capacity of 2), save.
-  2. Log out. Log in as a **citizen**. Open Events, press **Join** on it.
-  3. Open **Account**: under **My events** it should be listed.
-  4. Back on Events press **Going · Leave**.
-  5. Log in as the organization again, open Account.
-  - **Expected:** the card shows the date, place and "N spaces left". After Join
-    the button reads "Going · Leave" and the count drops; after Leave it returns.
-    A citizen has no Create event button. The organization sees **Hosting** on its
-    own event, how many people joined, and a **Cancel event** button that asks
-    first; a cancelled event disappears from the list but people who joined still
-    see it as cancelled under My events. With capacity 2, a third person gets
-    "This event is full".
-  - Account: organization and citizen (two different citizens to try the limit).
-  - **Automated check: passed** (curl: 57 checks of permissions, validation,
-    capacity, duplicate join, leave, cancel and a 5-way race for one space;
-    headless Chrome joined, left, opened the Create form).
-    **Not verified at all:** filling in and saving the Create event form by hand
-    (I created events by API and only opened the form).
+## 5. Suggested priority (Step 14)
 
-## 6. Suggested priority (Step 14)
-
-- [ ] **6.1 The chip on the report form.**
+- [ ] **5.1 The chip on the report form.**
   1. Open **Report Incident**. Leave severity on **Medium**.
   2. In "Describe what you see" type: `Two people trapped, one bleeding`.
   3. Press **Apply** on the blue chip.
@@ -191,181 +231,245 @@ new ones at `/register`:
   5. Pick **Critical**, then type `there is a child here`.
   6. Type `बचाओ, हम फंस गए हैं`, then `aag lagi hai`.
   - **Expected:** step 2: "Suggested priority: Critical, because it mentions
-    'trapped' and 'bleeding'" with an Apply button. Step 3: Critical is selected
-    and the chip becomes a quiet "matches your choice" line. Step 4: no chip.
-    Step 5: no chip (it never tells you to go **down**). Step 6: chips for the
-    Hindi and Hinglish words. Nothing ever changes without pressing Apply.
-  - Account: none needed. Works with the server off too.
+    'trapped' and 'bleeding'" with an Apply button. Step 3: Critical is selected and
+    the chip becomes a quiet "matches your choice" line. Step 4: no chip. Step 5: no
+    chip (it never tells you to go **down**). Step 6: chips for the Hindi and Hinglish
+    words. Nothing ever changes without pressing Apply. It works with the server off.
+  - Account: none needed.
   - **Automated check: passed** (headless Chrome, 15 checks; `npm run check:triage`
     runs 220 checks of the scoring rules).
 
-- [ ] **6.2 The reasons on the incident page.**
-  1. Submit the report `Gas leak in the building, child inside` and open it.
+- [ ] **5.2 The reasons on the incident page.**
+  1. Submit the report `Gas leak in the building, child inside`, then open it.
   - **Expected:** a blue "Suggested priority" note: High, "because the description
     mentions 'gas leak' and 'child'". Older incidents show no note.
   - **Automated check: passed.**
 
-- [ ] **6.3 Review the keyword list.** Open `app/lib/triage.js` (top of the file)
-  and read the words and weights. Tell me anything to add or remove.
+- [ ] **5.3 Review the keyword list.** Open `app/lib/triage.js` (top of the file) and
+  read the words and weights. Tell me anything to add or remove.
   - **Not verified at all:** whether the words suit your region.
 
-## 7. Nearest shelter (Step 15)
+## 6. Organization changes an incident's status (Step 12)
 
-- [ ] **7.1 Nearest shelter on the map.**
-  1. app server tab: production server running. Chrome: open
-     `http://localhost:3000/map` and **allow location** when asked.
-  2. Press **Nearest shelter** (beside "My location").
-  3. Press **Shelter details** in the panel, then close the panel with the X.
-  - **Expected:** a dashed green line from the blue dot to one green shelter, with
-    a label such as "7.3 km SW" on it; a green ring around that shelter; a panel
-    "Nearest open shelter" with its name, "N spaces free", and the sentence
-    "Straight-line distance, not a road route." The shelter is **open with free
-    spaces**: the demo "Sector 22" shelter is full and the "Kharar" one is closed,
-    so neither should ever be chosen. If you are far outside Chandigarh, Mohali and
-    Panchkula the offline map notice appears and the line is very long (correct).
-  - Account: none needed.
-  - **Automated check: passed** (headless Chrome with a faked location in
-    Chandigarh Sector 17: picked Mohali Phase 7, "7.3 km south-west (SW)", line
-    label, ring, panel, details button; also at phone size).
-    **Not verified at all:** your real location, and the line's look on your screen.
+- [ ] **6.1 Organization sets in progress and resolved.**
+  1. Log in as the **organization**. On Home click **Details** on an incident.
+  2. Press **Mark in progress**, then **Mark resolved**.
+  3. Open the same incident as the **citizen**.
+  - **Expected:** the badge changes to "Response in progress", then "Resolved", and
+    the buttons say "Currently ...". The citizen sees the incident and its status but
+    **no** buttons (and neither does a logged-out visitor). A resolved incident
+    disappears from the map.
+  - Account: organization, then citizen.
+  - **Automated check: passed** (curl: anonymous 401, citizen 403, organization 200,
+    invalid or extra fields 400, unknown id 404; headless Chrome clicked both buttons
+    and the status stuck on the server).
 
-- [ ] **7.2 Warning near an active incident.**
-  1. Report page: make a **Critical** report at latitude `30.7136`, longitude
-     `76.7179` (about 1 km from the demo shelter "Mohali Phase 7").
-  2. Open the Map, press **Nearest shelter** (allow location, or stand anywhere
-     closer to Mohali Phase 7 than to other open shelters).
-  3. Log in as the **organization**, open that incident, press **Mark resolved**.
-     Reload the map (or wait 30 seconds) and press **Nearest shelter** again.
-  - **Expected:** step 2: an amber **Near an active incident · 1.0 km away** badge
-    in the panel, and the same badge in that shelter's popup and on its card on the
-    Shelters page. Step 3: the badge is gone. A medium or low incident, or a high
-    one more than 2 km away, never causes it.
-  - Account: any, then organization.
-  - **Automated check: passed** (headless Chrome with created incidents: 1 km
-    critical warns, 2.6 km high does not, medium does not, resolved clears it).
-
-- [ ] **7.3 No location from the browser.**
-  1. Chrome: click the padlock beside the address, set **Location** to **Block**,
-     reload `/map`. Stay logged out. Press **Nearest shelter**.
-  2. Register a **new citizen** and press "Use my location" on the sign-up form
-     (allow it for this step), then block location again, log in and repeat.
-  - **Expected:** step 1: a panel "We need your location" that explains how to
-    allow it, with **Try again**. Step 2: it still works and says "Measured from
-    the location saved on your account". There is no screen to edit a saved
-    location later, only at sign up.
-  - **Automated check: passed** (headless Chrome, both cases).
-
-- [ ] **7.4 Shelters page.**
-  1. Open **Shelters** (allow location). Press **Nearest shelter**.
-  2. Press **Show the line on the map**.
-  - **Expected:** the page scrolls to one card with a green outline and "Nearest
-    open shelter"; every card shows "x km away · direction"; step 2 opens the map
-    with the line already drawn.
+- [ ] **6.2 "My reports".**
+  1. Log in as the citizen, open **Account**.
+  - **Expected:** a **My reports** list with status badges (the demo citizen already
+    has some). Clicking one opens its page, with a small map and a "View on map" link.
   - **Automated check: passed.**
 
-## 8. Resources and About (Step 16)
+## 7. Events (Step 13)
 
-- [ ] **8.1 Verify the emergency numbers.** This one is on you: I cannot check them.
-  1. Open **Resources**.
-  2. Look at the four numbers: **112** national emergency, **100** police, **101**
-     fire, **108** ambulance.
+- [ ] **7.1 Organization creates an event, citizens join and leave.**
+  1. Log in as the **organization**. Open **Events** (sidebar; on a phone it is in
+     the top-right menu). Press **Create event**, fill it in (a future start time,
+     capacity 2), save.
+  2. Log in as a **citizen**. Open Events, press **Join** on it.
+  3. Open **Account**: under **My events** it should be listed.
+  4. Back on Events press **Going · Leave**.
+  5. As the organization open Account.
+  - **Expected:** the card shows the date, place and "N spaces left". After Join the
+    button reads "Going · Leave" and the count drops; after Leave it returns. A
+    citizen has no Create event button. The organization sees **Hosting** on its own
+    event, how many joined, and a **Cancel event** button that asks first; a cancelled
+    event leaves the list, but people who joined still see it as cancelled under My
+    events. With capacity 2, a third person gets "This event is full" (the demo
+    first-aid training has exactly 2 places).
+  - Account: organization and citizen.
+  - **Automated check: passed** (curl: 57 checks of permissions, validation,
+    capacity, duplicate join, leave, cancel and a 5-way race for one space; headless
+    Chrome joined, left and opened the Create form).
+    **Not verified at all:** filling in and saving the Create event form by hand (I
+    created events through the API and only opened the form).
+
+## 8. Phone on the laptop's network (Step 11 and the cookie fix)
+
+- [ ] **8.1 Open the app on a phone and log in.**
+  1. new tab: `cd ~/Documents/Desktop/RescueNet/app && npm run lan:url` prints the
+     address, for example `http://192.168.1.6:3000` (it changes if your WiFi changes).
+     The app server tab must be running `npm run start:lan`.
+  2. Put the phone on the **same WiFi** as the laptop, or on the laptop's hotspot.
+     Type that address into the phone's browser.
+  3. Browse Home, Shelters, Map, Report. **Log in** with the citizen account.
+     Reload. Submit a report with coordinates typed by hand.
+  - **Expected:** pages, map and shelters work. Login **works and stays logged in**
+    (this was broken before I fixed it: the login cookie was thrown away over plain
+    http). Reports send.
+  - **Expected limits (not bugs):** "Use my location" and the SOS location do not work
+    over plain `http://<ip>` (browsers forbid it); an SOS from a phone needs a saved
+    account location (the demo citizen has one). There is no offline page cache and no
+    "Add to Home Screen" over plain http. A queued report is still sent when the
+    connection returns **while the page stays open**.
+  - **Automated check: passed** for the part I can reach: Chrome on the laptop using
+    the laptop's own LAN address `http://192.168.1.6:<port>` registered, logged in,
+    stayed logged in and used the app.
+    **Not verified at all:** a physical phone.
+
+- [ ] **8.2 Tap to call on a phone.**
+  1. On the phone open `/resources` and tap **112**. **Cancel the call** when the
+     dialler opens (do not actually call).
+  - **Expected:** the dialler opens with the number filled in.
+  - **Automated check: not run** (headless Chrome cannot dial; I only checked the links
+    are `tel:112`, `tel:100`, `tel:101`, `tel:108`).
+
+## 9. Resources and About (Step 16)
+
+- [ ] **9.1 Verify the emergency numbers. Only you can.**
+  1. Open **Resources**. Look at **112** (national emergency), **100** (police),
+     **101** (fire), **108** (ambulance).
   - **Expected:** each is correct for where you will demo, and 108 really is the
     ambulance number there (it differs in a few states). Edit
-    `app/components/resources/resourceData.js` if not. A `TODO: verify these
-    numbers before the demo` comment sits above the list in that file.
+    `app/components/resources/resourceData.js` if not. A `TODO: verify these numbers
+    before the demo` comment sits above the list in that file.
   - **Automated check: passed** that exactly these four numbers appear, each as a
     tap-to-call link. **Not verified at all:** that the numbers are right.
 
-- [ ] **8.2 Tap to call on a phone.**
-  1. Open `http://<laptop-ip>:3000/resources` on a phone. Tap **112**. **Cancel
-     the call** when the dialler opens (do not actually call).
-  - **Expected:** the phone's dialler opens with the number filled in.
-  - **Automated check: not run** (headless Chrome cannot dial; I only checked the
-    links are `tel:112`, `tel:100`, `tel:101`, `tel:108`).
-
-- [ ] **8.3 Read the guides.** Flood, Fire, Earthquake and Basic first aid, one
-  screen each.
+- [ ] **9.2 Read the guides.** Flood, Fire, Earthquake, Basic first aid.
   - **Expected:** short, sensible steps; the note "General guidance. Follow
-    instructions from local authorities." at the top and the bottom; no medicine
-    names or doses anywhere. Tell me about anything you would not stand behind.
-  - **Automated check: passed** for the note, the four guides and "no medicine
-    words". **Not verified at all:** that the advice suits your region (a doctor or
-    your local disaster authority should read it before anyone relies on it).
+    instructions from local authorities." at the top and the bottom; no medicine names
+    or doses anywhere. Tell me about anything you would not stand behind.
+  - **Automated check: passed** for the note, the four guides and "no medicine words".
+    **Not verified at all:** that the advice suits your region (a doctor or your local
+    disaster authority should read it before anyone relies on it).
 
-- [ ] **8.4 Works with the server stopped.**
+- [ ] **9.3 They open with the server stopped.**
   1. Production server running; visit Resources and About once; wait 10 seconds.
-  2. app server tab: Ctrl+C. Reload both pages.
-  - **Expected:** both still open. Start the server again afterwards.
+  2. app server tab: Ctrl+C. Reload both pages. Start the server again afterwards.
+  - **Expected:** both still open.
   - **Automated check: passed.**
 
-- [ ] **8.5 Fill in the About page team block.** The "Team and project" section
-  shows a dashed amber **TODO: to be added** box. I did not invent any names.
-  Edit `app/app/about/page.js` (the comment above that section says what to add).
+- [ ] **9.4 Fill in the About page's team block.** The "Team and project" section
+  shows a dashed amber **TODO: to be added** box. I did not invent any names. (The
+  repo's `README.md` lists four names, but I do not know their roles or what you want
+  published.) Edit `app/app/about/page.js`; the comment above that section says what to
+  add.
   - **Expected:** no TODO box left when you demo.
   - **Not verified at all:** only you can fill it in.
 
-## 9. Security (Step 17)
+---
 
-- [ ] **9.1 Change the Atlas passwords. Do this first, today.** I can only warn you.
-  1. A teammate's `.env` with **MongoDB Atlas connection strings and passwords**
-     is committed on the **`master`** branch of the **public** GitHub repo
-     (commit `0b58cf0`, "Setup RescueNet backend"). Two Atlas accounts are in it.
-  2. Log in to Atlas (cloud.mongodb.com). Under Database Access, change the
-     password of every user named in that file (or delete the user), or delete the
-     cluster if nobody uses it.
-  - **Expected:** the old passwords no longer work. Deleting the file from
-    `master` is **not** enough, because git history keeps it.
-  - Account: the Atlas account owner (ask your teammate).
-  - **Not verified at all:** I did not touch Atlas or `master`. Details in
-    `docs/SECURITY.md`.
+# Part 2: behind the scenes
 
-- [ ] **9.2 Login still works everywhere, and logout works.**
-  1. Production server running. Log in at `http://localhost:3000/login`, then on a
-     phone at `http://<laptop-ip>:3000/login`. Reload the page. Press log out.
+## 10. Security (Step 17)
+
+- [ ] **10.1 Login works everywhere, and logout works.**
+  1. Log in at `http://localhost:3000/login`, reload, log out. Repeat on a phone at
+     `http://<laptop-ip>:3000/login`.
   - **Expected:** you stay logged in after a reload on both, and log out cleanly.
   - **Automated check: passed** on the laptop (localhost and the LAN address).
     **Not verified at all:** a physical phone.
 
-- [ ] **9.3 The browser shows the security headers.**
-  1. Chrome, open `http://localhost:3000`, press Cmd+Option+I, open **Network**,
-     reload, click the first row (the page), and look at **Response Headers**.
+- [ ] **10.2 The browser shows the security headers.**
+  1. Chrome, `http://localhost:3000`, Cmd+Option+I, **Network**, reload, click the first
+     row (the page), look at **Response Headers**.
   - **Expected:** `Content-Security-Policy` (starting `default-src 'self'`),
     `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, and **no**
     `X-Powered-By`.
-  - **Automated check: passed** (curl and headless Chrome, every page, no CSP
-    violation on any page or button I pressed).
+  - **Automated check: passed.**
 
-- [ ] **9.4 Nothing breaks under the strict policy.** Click through **every page**
-  with the DevTools **Console** open, including the map, a map popup, the SOS
-  button, Create event, and Report.
-  - **Expected:** no red "Refused to load/connect ... Content Security Policy"
-    messages.
-  - **Automated check: passed** for 14 pages and the interactive paths.
+- [ ] **10.3 Nothing breaks under the strict policy.** Click through **every page** with
+  the DevTools **Console** open, including the map, a map popup, the SOS button,
+  Create event, and Report.
+  - **Expected:** no red "Refused to load/connect ... Content Security Policy" lines.
+  - **Automated check: passed** for 17 pages as three kinds of user, plus the
+    interactive paths, in both the production build and `npm run dev`.
 
-- [ ] **9.5 No development badge in production.** Run the production server
-  (`npm run build`, `npm run start:lan`) and open any page.
+- [ ] **10.4 No development badge in production.** Open any page of the production
+  server.
   - **Expected:** no round "N" Next.js badge in the corner (it does show under
-    `npm run dev`; that is normal).
+    `npm run dev`, which is normal).
   - **Automated check: passed** (searched the built pages).
 
-- [ ] **9.6 Read the "not fixed" list** in `docs/SECURITY.md` and decide what you
-  are happy to explain at the demo (anyone can register as an organization; the
-  network is plain http; rate limits reset on restart).
+- [ ] **10.5 Read the "not fixed" list** in `docs/SECURITY.md` and decide what you are
+  happy to explain at the demo (anyone can register as an organization; the network is
+  plain http; rate limits reset on restart).
   - **Not verified at all:** that is a judgement for you.
 
----
+## 11. Fresh laptop and the setup guide (Step 18)
+
+- [ ] **11.1 Follow `docs/README_APP.md` on a second laptop (or a fresh user account).**
+  1. Do the steps in order: Node, MongoDB from the tgz, clone, `.env.local`, `npm ci`,
+     the map file, `npm run demo:seed`, `npm run build`, `npm run start:lan`.
+  - **Expected:** the app runs at `http://localhost:3000` with the demo scene, and every
+    command in the guide works as written. Tell me any step that is wrong or unclear.
+  - **Automated check: passed** for everything except installing Node and MongoDB:
+    I cloned the pushed branch into an empty folder, followed the guide (copy
+    `.env.local`, `npm ci`, copy the map file, `npm run demo:seed`, build, `npm run
+    start:lan`), and the audit below passed on it.
+    **Not verified at all:** installing MongoDB from the tgz and Node on a laptop that
+    has neither, and the run without internet.
+
+- [ ] **11.2 Everything works with the internet physically off.**
+  1. Disconnect the second laptop (or yours) from all networks, start MongoDB and the
+     app, open `http://localhost:3000`, click every page.
+  - **Expected:** nothing waits, nothing shows a broken image or font, nothing says it
+    could not load.
+  - **Automated check: passed** that no page, as any of the three kinds of user,
+    requests anything outside localhost (51 page visits), and that the browser itself
+    blocks outside requests (the CSP). **Not verified at all:** a laptop that truly has
+    no connection.
+
+## What I audited automatically in Step 18 (for your confidence)
+
+On a **fresh clone of the pushed branch** (scratch database, port 3110):
+
+- `npm run lint`: clean. `npm run build`: 0 warnings, 0 errors. Production server with
+  `next start` (through `npm run start:lan`).
+- **51 page visits** (17 pages and routes, each as visitor, citizen and organization):
+  no page error, no console error, no unexpected failed or 4xx/5xx request, no CSP
+  violation, **no request to any host except localhost**. Also the manifest, icons,
+  `sw.js`, `offline.html`, favicon, and the map file's Range request (206).
+- **40 API checks**: every API route as visitor, citizen and organization against its
+  expected status (including 401/403/404/405 and the wrong-method cases), and that no
+  private field (email, phone, password hash, reporter id, attendee list) appears in a
+  public answer.
+- The same code also passed the older suites on the working copy: triage (220 checks)
+  and nearest-shelter maths (88), API suites (29, 57, 64), browser suites (15, 22, 11,
+  30, 7, 7, 27, and 21 of 22: see below).
+- `reg11` (the offline queue test) reports 1 of 22 "failed". That check asserts that an
+  *anonymous* visitor can see the "Sent" list on `/account` after the server returns.
+  `/account` correctly sends logged-out visitors to the login page, so the assumption
+  was wrong, not the app. Everything that matters in that run passed.
 
 ## Not finished
 
-Nothing so far.
+Nothing. Steps 14 to 18 are built, verified as described above, committed and pushed to
+`rebuild`.
 
 ## Things I changed that you did not ask for
 
-- **Hardening beyond the plan's wording (Step 17).** Besides headers and the audit
-  I added a cross-site write guard (`proxy.js`), a body size limit, a per-account
-  login limit and removed private ids from public answers. All are listed in
-  `docs/SECURITY.md`. If one causes trouble, tell me which.
-- **Login cookie fix (`lib/auth.js`).** Found while re-checking Step 11: in a
-  production build the login cookie was marked `Secure`, which browsers discard
-  over `http://<laptop-ip>`, so login on a phone silently failed. It is now `Secure`
-  only when the request was https. Committed separately.
+- **Your app server on port 3000 now serves an old build** (see 0.1). I rebuilt in the
+  same folder while it was running.
+- **Login cookie fix (`lib/auth.js`).** Found while re-checking Step 11: in a production
+  build the login cookie was `Secure`, which browsers throw away over
+  `http://<laptop-ip>`, so login on a phone silently failed. It is now `Secure` only when
+  the request was https. Committed separately.
+- **Hardening beyond the plan's wording (Step 17).** Besides headers and the audit I added
+  a cross-site write guard (`proxy.js`), a request-size limit, a per-account login
+  limit, a 32-character minimum for `JWT_SECRET`, and removed private ids from public
+  answers (screens now get `isMine`). All listed in `docs/SECURITY.md`. If one causes
+  trouble, tell me which.
+- **Distance text bug (Step 15).** `formatDistance` showed 0.9999 km as "1000 m"; it now
+  says "1.0 km".
+- **Home tiles (Step 18).** "Safe Route: Steer clear of blocked roads" and "Rescue Teams:
+  Contacts and live status" promised things the app does not do (no routing, no live
+  team data). They are now "Nearest Shelter" (straight-line, links to the map's nearest
+  shelter) and "Emergency Numbers" (links to Resources).
+- **Demo flags.** Incidents, events and accounts can now carry `seeded: true`, and demo
+  incidents show a small "Demo" tag. The API cannot set it.
+- **Not touched:** `master`, `client/`, `server/`, `.gitignore`, your real accounts and
+  your test incidents (your database still has exactly the 3 incidents, 2 accounts and 6
+  shelters it had). Every test I ran created data with a marker, in your database or in a
+  scratch one, and I deleted it afterwards.
