@@ -8,8 +8,9 @@ import { toneClasses } from "./tones";
 const ACTIONS = [
   { id: "report", title: "Report Incident", description: "Flag a hazard or emergency", href: "/report", icon: "file-plus", tone: "amber" },
   { id: "shelter", title: "Find Shelter", description: "Open shelters near you", href: "/shelters", icon: "house-plus", tone: "green" },
-  { id: "route", title: "Safe Route", description: "Steer clear of blocked roads", href: "/map", icon: "route", tone: "green" },
-  { id: "rescue", title: "Rescue Teams", description: "Contacts and live status", href: "/resources", icon: "life-buoy", tone: "blue" },
+  // Straight-line guidance only: there is no routing, so the tile says so.
+  { id: "nearest", title: "Nearest Shelter", description: "Distance and direction, not a road route", href: "/map?nearest=1", icon: "compass", tone: "green" },
+  { id: "numbers", title: "Emergency Numbers", description: "Call 112, 100, 101 or 108", href: "/resources", icon: "life-buoy", tone: "blue" },
 ];
 
 export default function QuickActions({ className = "" }) {
