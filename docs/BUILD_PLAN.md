@@ -1,6 +1,6 @@
 # RescueNet build plan
 
-Instructions for the `rescuenet-builder` agent. Follow this file exactly. Steps 1 to 9 are already built. Do steps 10 to 18 in order, one at a time.
+Instructions for the `rescuenet-builder` agent. Follow this file exactly. Steps 1 to 18 are already built. Do steps 19 to 22 in order, one at a time (the Android APK).
 
 ## How to work
 
@@ -11,7 +11,7 @@ Instructions for the `rescuenet-builder` agent. Follow this file exactly. Steps 
 5. Continue to the next step automatically only if the current step fully passed its verification. If a step fails twice, stop and report. Do not guess.
 6. When something is not specified, pick the simplest option and mention it in your report.
 7. After each step, report briefly: what you built, files changed, what you verified and how, what you could NOT verify, and anything Kartik must do by hand.
-8. After step 18, stop. Do not invent extra steps.
+8. After step 22, stop. Do not invent extra steps.
 
 ## Standing rules
 
@@ -135,3 +135,48 @@ Tell Kartik in your report: an old `.env` containing a MongoDB Atlas URI was com
 5. List the known limits honestly (in-memory rate limits reset on restart, straight-line guidance only, one-area map, rule-based priority).
 
 STOP and ask Kartik to do a full offline rehearsal on his laptop.
+
+---
+
+## Step 19: Android toolchain (no Homebrew, no Android Studio)
+
+Goal of steps 19 to 22: an Android APK, installable by sideloading, that bundles the UI and the offline map, talks to the laptop server for live data, keeps saved data, and queues reports and SOS.
+
+1. Read the current Capacitor Android docs (`https://capacitorjs.com/docs/android`) and the Capacitor "Environment Setup" page for the required JDK, Android SDK and Gradle versions. Follow what they say today, not what you remember.
+2. Download a JDK tarball (not an installer, not Homebrew) and the Android command-line tools into `~/dev`, outside the repo. Verify checksums when the publisher gives them. Report the size of every download.
+3. Accept the SDK licences with `sdkmanager --licenses` and install only the packages Capacitor needs (platform-tools, the required `platforms;android-NN`, `build-tools;NN`). Report the disk used.
+4. Add Capacitor to `app/` (`@capacitor/core`, `@capacitor/cli`, `@capacitor/android`) and create the Android platform. Use the app id `in.rescuenet.app` unless something is already decided, and the name `RescueNet`.
+5. Do not change how the browser version works. `npm run dev`, `npm run build` and `npm start` must behave exactly as before.
+
+Verify: `java -version`, `sdkmanager --list_installed`, `npx cap doctor`, and that `npm run lint` and `npm run build` still pass.
+
+## Step 20: Static mobile build, server address, bearer auth
+
+1. `npm run build:mobile` builds only the UI as a static export for the APK. The export has no API routes in it. The normal `npm run build` is untouched. The mobile build is selected by an environment variable, never by default.
+2. The server address is set on a first-run screen and on a Settings page: "Laptop address" (for example `http://192.168.1.6:3000`) with a Test button that calls `/api/health`. Validate and normalise the address (http or https only, no path, no credentials).
+3. Routes with dynamic ids (`/incidents/[id]`) get a static-export-friendly form (a query string, such as `/incidents/view?id=...`) in the mobile build only. The browser build keeps its current URLs.
+4. Auth for the APK uses a bearer token. The server accepts `Authorization: Bearer <jwt>` in addition to the cookie. Login returns the token in the JSON body only when the client asks for it. The app keeps the token with the Capacitor Preferences plugin and clears it on logout.
+5. API calls from the app go through `CapacitorHttp` so plain `http://` to the laptop works. Allow cleartext traffic in the Android project and document the trade-off in `docs/SECURITY.md`.
+6. Keep the rate limits and the validation. Do not weaken CORS for browsers: the web build still refuses cross-site writes, and the bearer path must not open a hole in that guard.
+
+Verify: lint, `npm run build`, `npm run build:mobile`, grep the export for `/api` route files, and curl the bearer path (login with and without the token request, a protected route with the cookie, with a bearer, and with neither).
+
+## Step 21: Offline in the app
+
+1. Bundle `app/public/maps/tricity.pmtiles` in the APK assets and read it with a custom PMTiles source, so the map works with the laptop off. If the file is over 150 MB, download it on first run instead, with progress. The `.pmtiles` file is never committed.
+2. Save the last responses of incidents, shelters, events and stats in IndexedDB. When the laptop cannot be reached, show the saved data with a "Saved data from <time>, not live" banner. Clear the saved data on logout.
+3. Keep the outbox (reports and SOS, sent exactly once, SOS first). It must keep working through the new HTTP layer and the idempotency key must still be sent.
+4. Use the Capacitor Geolocation plugin with the proper Android location permission for SOS, reports, and "My location". The browser build keeps using `navigator.geolocation`.
+
+Verify: lint, both builds, unit-style checks of the saved-data and address logic, and a run of the static export in a browser with the server stopped.
+
+## Step 22: Build the APK and docs (CHECKPOINT)
+
+1. `npm run apk` builds a debug APK and copies it to `app/dist/RescueNet.apk`.
+2. Do not commit the APK, keystores or the SDK. Stage files by explicit path. Do not edit `.gitignore`.
+3. Write `docs/APK_SETUP.md`: install on a phone (allow install from unknown sources, the Play Protect warning), enter the laptop address, start the server with `npm run start:lan`, and the known limits.
+4. Add a phone test to `docs/TEST_CHECKLIST.md`.
+5. Report honestly what you could NOT verify (no phone or emulator here means the APK has not been run).
+
+Verify: the APK exists and `aapt`/`apksigner` (or `unzip -l`) shows the UI, the map and the manifest permissions.
+STOP and ask Kartik to install the APK on a phone and run the phone test. Do not commit Step 22 until he approves.
