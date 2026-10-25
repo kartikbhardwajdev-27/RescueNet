@@ -1,6 +1,6 @@
 # RescueNet build plan
 
-Instructions for the `rescuenet-builder` agent. Follow this file exactly. Steps 1 to 18 are already built. Do steps 19 to 22 in order, one at a time (the Android APK).
+Instructions for the `rescuenet-builder` agent. Follow this file exactly. Steps 1 to 22 are already built. Do steps 23 to 26 in order, one at a time (offline road navigation to the nearest shelter).
 
 ## How to work
 
@@ -11,14 +11,14 @@ Instructions for the `rescuenet-builder` agent. Follow this file exactly. Steps 
 5. Continue to the next step automatically only if the current step fully passed its verification. If a step fails twice, stop and report. Do not guess.
 6. When something is not specified, pick the simplest option and mention it in your report.
 7. After each step, report briefly: what you built, files changed, what you verified and how, what you could NOT verify, and anything Kartik must do by hand.
-8. After step 22, stop. Do not invent extra steps.
+8. After step 26, stop. Do not invent extra steps.
 
 ## Standing rules
 
 - Branch: `rebuild`. Never push to `main`.
 - Edit only inside `app/` and `docs/` (the repo root `docs/`). Never touch `client/` or `server/`.
 - Never edit `.gitignore`. Never commit `.env.local`, secrets, or the `.pmtiles` map file.
-- Zero internet at runtime: no CDN, no Google Fonts, no external URLs, no analytics. Everything is bundled or served from this app.
+- Zero internet at runtime: no CDN, no Google Fonts, no external URLs, no analytics. Everything is bundled or served from this app. The only exception is the one-time road data download in Step 23 (`npm run routing:build`), which is a build-time script and never runs in the app.
 - UI style: dark theme, existing brand gradient, rounded cards, Space Grotesk and Inter (already bundled), `lucide-react` icons only.
 - Colour meaning: red = emergency and SOS only, green = safe and shelter, amber = warning, blue = information.
 - Commit messages have no `Co-Authored-By` line.
@@ -180,3 +180,50 @@ Verify: lint, both builds, unit-style checks of the saved-data and address logic
 
 Verify: the APK exists and `aapt`/`apksigner` (or `unzip -l`) shows the UI, the map and the manifest permissions.
 STOP and ask Kartik to install the APK on a phone and run the phone test. Do not commit Step 22 until he approves.
+
+---
+
+## Step 23: Road data
+
+Goal of steps 23 to 26: real offline road navigation to the nearest shelter. The only time the internet may be used is the one-time road data download in this step. Nothing may touch the internet at runtime.
+
+1. Add `npm run routing:build`. It downloads OpenStreetMap roads for bbox `76.60,30.55,76.95,30.85` (west,south,east,north) ONCE, either from the Overpass API in small chunks that respect fair use, or from a Geofabrik extract. Pick the simplest that works. No API keys.
+2. Keep routable highways only. Build a compact graph: nodes at intersections (merge degree-2 nodes into edge geometry), edge length, road class, one-way flags, street name, and flags for walk and drive.
+3. Write `app/public/routing/tricity-roads.*` (compact binary or gzipped JSON) plus `meta.json` (build date, counts, bbox). Keep only the largest connected component per profile and report the coverage. Report the file sizes.
+4. Add "© OpenStreetMap contributors" on the Map and About pages.
+
+Verify: 10 known place pairs (Chandigarh Sector 17, PGI, Mohali Phase 7, Zirakpur VIP Road, Panchkula Sector 5, and others). Road distance divided by straight-line distance must be between 1.0 and 2.0. Flag every outlier. Also lint and build.
+
+## Step 24: Routing engine
+
+1. `lib/routing/`: load the graph once and cache it (Cache or IndexedDB) so it works offline.
+2. Snap the start and end to the nearest road within 300 m, otherwise report "outside coverage".
+3. A* with a binary heap and a haversine heuristic.
+4. Profiles: `drive` (respects one-ways, excludes pedestrian-only roads) and `walk` (ignores one-ways, excludes motorways).
+5. Avoid zones: circles of 200 m around active incidents of type flood, fire or earthquake with severity high or critical. Edges inside a zone get a x10 cost, not a hard block, and the result says if the route still crosses a zone.
+6. Run it in a Web Worker.
+
+Verify: unit tests with fixed expected results, and a measurement of the speed. Lint and build.
+
+## Step 25: Navigation UI
+
+1. A "Navigate to nearest shelter" button on `/map`, and a "Navigate" action on each shelter card and popup.
+2. Candidates are open shelters with free space. Route to the 3 nearest by straight line and pick the cheapest by route.
+3. Draw the route on the map. Show a summary bar with distance, estimated time (labelled clearly as an estimate) and a Walk/Drive toggle.
+4. Show a turn-by-turn list built from street names, turn directions and distances.
+5. A "Start" mode follows the user's location, highlights the current step, and recalculates when the user is more than 60 m off the route.
+6. Warn when the route passes an active incident, and when no safe route exists.
+7. If the road graph is missing or the user is outside coverage, fall back to the existing straight-line guidance. When the server is unreachable, use the saved shelter and incident lists.
+8. Do not claim traffic data or road closures beyond reported incidents.
+
+Verify: lint, both builds, and the UI in a browser with the server reachable and with it stopped.
+
+## Step 26: Android app and docs
+
+1. Put the road graph into the APK assets and update the APK build. Report the size and ask before including anything over 40 MB.
+2. Write `docs/NAVIGATION.md` with the limits (no traffic, no turn restrictions, one-ways may be incomplete, estimates only, closures only from reported incidents) and the regenerate command.
+3. Add navigation tests to `docs/TEST_CHECKLIST.md`, including airplane mode and a real walk.
+4. Commit only files under 15 MB. For anything larger, commit the build script and docs only. Stage by explicit path and do not edit `.gitignore`.
+5. Report what you could NOT verify (real GPS movement, Android, real roads).
+
+Verify: the APK contains the road graph, plus lint and both builds. After Step 26, stop.
