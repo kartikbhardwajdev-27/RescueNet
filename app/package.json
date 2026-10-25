@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "build:mobile": "node scripts/build-mobile.mjs",
+    "apk": "node scripts/build-apk.mjs",
     "start": "next start",
     "lint": "eslint",
     "check:triage": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/check-triage.mjs",

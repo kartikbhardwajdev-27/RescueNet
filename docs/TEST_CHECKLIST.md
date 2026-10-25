@@ -1,4 +1,4 @@
-# RescueNet: hand-test checklist (Steps 10 to 18)
+# RescueNet: hand-test checklist (Steps 10 to 22)
 
 Everything you must try yourself, in the order that matters most for the demo.
 Tick a box only when you saw the expected result.
@@ -420,6 +420,131 @@ organization, so you never log in and out.
     requests anything outside localhost (51 page visits), and that the browser itself
     blocks outside requests (the CSP). **Not verified at all:** a laptop that truly has
     no connection.
+
+# Part 3: the Android app on a real phone (Steps 19 to 22)
+
+**Nothing in this part has been run on a phone.** I had no phone or emulator. What I
+ran instead is called "stand-in" below: the same screens (the exact `app/out`
+export that goes into the APK) in headless Chrome, against a real production server,
+with the Capacitor plugins falling back to their browser versions. That checks the
+app's own logic. It does **not** check Android: the native HTTP request, the file
+server inside the app, the permission dialogs, the WebView, the install. That is what
+you are testing here. Setup is in `docs/APK_SETUP.md`.
+
+**Before you start:** `npm run build`, `npm run start:lan`, MongoDB running, demo data
+(`npm run demo:seed`), and `npm run apk` done. Phone and laptop on the same WiFi (or
+the phone on the laptop's hotspot). Note the address from `npm run lan:url`.
+
+## 12. Install and connect (Step 19, 20, 22)
+
+- [ ] **12.1 Install the APK.**
+  1. Get `app/dist/RescueNet.apk` onto the phone (`docs/APK_SETUP.md`, section 3) and
+     open it.
+  2. Allow installing from that source when Android asks. If Play Protect warns,
+     choose **More details**, then **Install anyway**.
+  - **Expected:** a "RescueNet" app appears and opens. **Write down** the exact
+    wording of the Play Protect screen and your Android version, so the guide can be
+    corrected.
+  - **Automated check: passed** that the APK is well formed and signed (`apksigner`,
+    `aapt2`). **Not verified at all:** installing it, and the Play Protect wording.
+
+- [ ] **12.2 First run: connect to the laptop.**
+  1. Open the app. You should see **Connect to the laptop**.
+  2. Type the laptop address, press **Test**.
+  3. Type a wrong port (for example `:3999`) and press **Test** again.
+  4. Type `http://8.8.8.8:3000` and press **Save and continue**.
+  5. Put the right address back, press **Save and continue**.
+  - **Expected:** step 2 "Connected. RescueNet answered and its database is ready."
+    Step 3 "Couldn't reach it...". Step 4 refuses it ("Plain http:// is only allowed
+    for addresses on your own network"). Step 5 opens Home with live numbers.
+  - **If step 2 fails but the same address opens in the phone's browser:** that is the
+    native HTTP / cleartext path (the biggest unverified risk). Tell me the exact
+    message. Also tell me if Android showed a **local network** permission prompt.
+  - **Stand-in: passed** (all five steps, including the refusal and the test messages).
+    **Not verified at all:** that the request leaves a real phone.
+
+- [ ] **12.3 The screen fits.**
+  1. Look at the top bar, the bottom bar and the SOS button on Home, Map and Report.
+  - **Expected:** nothing is hidden under the status bar or the navigation bar, and
+    the bottom bar is fully tappable.
+  - **Stand-in: not run** (a desktop window has no system bars). **Not verified at
+    all:** Android 15+ edge-to-edge on your phone.
+
+## 13. Live data, login and Settings (Step 20)
+
+- [ ] **13.1 Log in, close the app completely, open it again.**
+  1. Log in with the citizen account (`demo.citizen@rescuenet.test`).
+  2. Swipe the app away from the recent apps list. Open it again.
+  - **Expected:** you are still logged in (Account shows the citizen).
+  - **Stand-in: passed** (token kept, still logged in after reopening).
+    **Not verified at all:** Android's own storage.
+
+- [ ] **13.2 Settings and logging out.**
+  1. More menu (top right), **Settings**. The address you saved is there.
+  2. Log out from Account.
+  - **Expected:** logging out works, with the laptop on and with the laptop off.
+    Saving a **different** address in Settings logs you out.
+  - **Stand-in: passed.**
+
+## 14. The laptop switched off (Step 21)
+
+- [ ] **14.1 Map and saved data with the laptop off.**
+  1. With the app showing live data (open Home, Shelters, Events and Map once),
+     stop the server on the laptop (Ctrl+C in the app server tab). Keep the phone on
+     the WiFi.
+  2. Close the app completely and reopen it. Open Home, Map, Shelters, Events.
+  - **Expected:** the map **still draws** (streets and names) with markers, and each
+    page shows an amber **"Saved data from <time>, not live"**. A banner says the
+    server is unavailable or you are offline.
+  - **Stand-in: passed**, including with the file server refusing Range requests.
+    **Not verified at all:** Android's file server serving the map file (I read its
+    source: it does not support Range correctly, which is why the app reads the map
+    as one file).
+
+- [ ] **14.2 Report and SOS while the laptop is off.**
+  1. Still with the laptop off: submit a report (type coordinates). Then press SOS
+     and **Send**. Android will ask for **location**; allow it (try **While using the
+     app**, and once with **Approximate**).
+  2. Start the server again (`npm run start:lan`). Keep the app open.
+  - **Expected:** the report shows "queued", the SOS shows "SOS queued. It will be
+    sent when the connection returns." Within a minute of the server returning both
+    are sent. **Exactly one** new incident per item appears (check Map or
+    `curl localhost:3000/api/incidents`).
+  - **Stand-in: passed** (queued while the server was down, delivered once each when
+    it came back). **Not verified at all:** Android's location permission dialog,
+    GPS speed, the native request.
+
+- [ ] **14.3 Logging out clears the saved lists.**
+  1. Log in, open Home and Map, log out. Stop the laptop's server. Open Home.
+  - **Expected:** no "Saved data" banner and no old numbers; the page says it
+    cannot load.
+  - **Stand-in: passed** (the saved lists and the token are gone after logout).
+
+- [ ] **14.4 No internet at all.**
+  1. Turn on **Airplane mode** (and WiFi back on only if you want the laptop).
+  2. Open the app. Open the map and Resources.
+  - **Expected:** both work. Nothing waits on the internet.
+  - **Stand-in: passed** that the app's pages make no request except to the app and
+    the saved laptop address (and its policy blocks any other).
+    **Not verified at all:** a phone in airplane mode.
+
+## What I audited in Steps 19 to 22
+
+- `npm run lint`, `npm run build` (the website: **same routes as before; no Android
+  code in its JavaScript**, checked by searching the build) and `npm run build:mobile`
+  (13 routes, no API routes) all pass. `npm run check:mobile` (63 checks: laptop
+  address rules and reading the login token), `check:triage` (220) and
+  `check:nearest` (88) pass.
+- **Website regression in headless Chrome** (login by cookie, logout, an incident page
+  by path, an SOS with the browser's own location, no Settings page, no first-run
+  screen): 10 of 10.
+- **App stand-in in headless Chrome** (see the top of this part): 26 checks for Step
+  20 and 22 for Step 21, all passed.
+- **curl against the production server:** register and login with and without
+  `returnToken`; bearer, cookie, neither, malformed, wrongly signed and `alg: none`
+  tokens; the cross-site guard with a bearer header; no CORS headers; a retried write
+  with the same `Idempotency-Key` stored once.
+- **APK:** builds with `npm run apk` in 24 s (21 MB), debug-signed, contents checked.
 
 ## What I audited automatically in Step 18 (for your confidence)
 

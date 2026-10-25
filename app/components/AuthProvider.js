@@ -143,13 +143,14 @@ export default function AuthProvider({ children }) {
 
   const logout = useCallback(async () => {
     version.current++;
-    const response = await postJson("/api/auth/logout");
-    // The app's login lives on the phone, so it can always log out, even with
-    // the laptop out of reach. The website needs the server to drop its cookie.
+    // The app's login lives on the phone, so it logs out right here, without
+    // asking the laptop (which could be out of reach). The website needs the
+    // server to drop its cookie.
     if (await signOutHere()) {
       setUser(null);
       return { ok: true };
     }
+    const response = await postJson("/api/auth/logout");
     if (response.ok) setUser(null);
     return response.ok ? { ok: true } : toResult(response);
   }, []);
