@@ -7,6 +7,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { EmptyState, ErrorState, Skeleton } from "@/components/home/states";
 import { useToast } from "@/components/SosProvider";
 import useNearestShelter from "@/components/useNearestShelter";
+import SavedDataBanner, { oldestSavedAt } from "@/components/SavedDataBanner";
 import usePolledResource from "@/components/usePolledResource";
 import useUserLocation from "@/components/useUserLocation";
 import { fetchIncidents, fetchShelters } from "@/lib/api";
@@ -100,6 +101,7 @@ export default function SheltersView() {
 
   return (
     <div className="@container">
+      <SavedDataBanner savedAt={oldestSavedAt(shelters, incidents)} className="mb-4" />
       <div className="flex flex-col gap-4 @2xl:flex-row @2xl:items-center">
         <div className="relative flex-1">
           <label htmlFor="shelter-search" className="sr-only">

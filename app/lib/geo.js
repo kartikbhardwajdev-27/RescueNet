@@ -1,4 +1,8 @@
-// Browser geolocation as a promise, with a hard time limit.
+// Device geolocation as a promise, with a hard time limit. The browser's
+// navigator.geolocation on the website, the Capacitor plugin in the Android app
+// (see lib/devicePosition.js).
+
+import { LOCATION_DENIED_HELP, deviceGeolocation } from "./devicePosition.js";
 
 export const LOCATION_TIMEOUT_MS = 10_000;
 
@@ -15,7 +19,8 @@ const round = (n) => Number(n.toFixed(6));
 // how old a cached fix may be.
 export function getCurrentLocation({ timeoutMs = LOCATION_TIMEOUT_MS, signal, highAccuracy = true, maxAgeMs = 10_000 } = {}) {
   return new Promise((resolve, reject) => {
-    if (typeof navigator === "undefined" || !navigator.geolocation) {
+    const geolocation = deviceGeolocation();
+    if (!geolocation) {
       reject(locationError("unsupported"));
       return;
     }
@@ -38,7 +43,7 @@ export function getCurrentLocation({ timeoutMs = LOCATION_TIMEOUT_MS, signal, hi
     // keeping the total wait at `timeoutMs` either way.
     timer = setTimeout(() => finish(reject, locationError("timeout")), timeoutMs);
 
-    navigator.geolocation.getCurrentPosition(
+    geolocation.getCurrentPosition(
       ({ coords }) => finish(resolve, { lng: round(coords.longitude), lat: round(coords.latitude), accuracy: coords.accuracy }),
       (err) => finish(reject, locationError(err.code === 1 ? "denied" : err.code === 3 ? "timeout" : "unavailable")),
       { enableHighAccuracy: highAccuracy, timeout: timeoutMs, maximumAge: maxAgeMs },
@@ -50,7 +55,7 @@ export function getCurrentLocation({ timeoutMs = LOCATION_TIMEOUT_MS, signal, hi
 export function describeLocationError(code) {
   switch (code) {
     case "denied":
-      return "Location permission was denied. Allow location in your browser and try again.";
+      return `Location permission was denied. ${LOCATION_DENIED_HELP}`;
     case "timeout":
       return "Couldn't get your location in time. Try again.";
     case "unsupported":

@@ -50,4 +50,15 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!--
+        Location, for SOS, "Use my location" in reports and the map's blue dot.
+        FINE is the precise GPS fix; COARSE is "approximate", which Android 12 and
+        later let the person choose instead. Android asks at run time (the first
+        time a position is wanted); the app works without it, with the person
+        typing the address. GPS is not required to install.
+    -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-feature android:name="android.hardware.location.gps" android:required="false" />
 </manifest>

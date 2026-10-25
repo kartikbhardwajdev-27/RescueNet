@@ -8,6 +8,7 @@ import { useSearchParams } from "next/navigation";
 import { LngLatBounds, Map as MapLibreMap, Marker, NavigationControl, Popup } from "maplibre-gl";
 import Card from "@/components/Card";
 import { useToast } from "@/components/SosProvider";
+import { oldestSavedAt } from "@/components/SavedDataBanner";
 import usePolledResource from "@/components/usePolledResource";
 import useNearestShelter from "@/components/useNearestShelter";
 import useUserLocation from "@/components/useUserLocation";
@@ -488,6 +489,7 @@ export default function MapView() {
             baseMapMissing={baseMapMissing}
             outsideCoverage={outsideCoverage}
             empty={empty}
+            savedAt={oldestSavedAt(incidents, shelters)}
           >
             <NearestPanel
               request={nearest.request}

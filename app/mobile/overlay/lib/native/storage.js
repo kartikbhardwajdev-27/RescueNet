@@ -14,6 +14,7 @@
 // against someone with root on the phone. See docs/SECURITY.md.
 
 import { Preferences } from "@capacitor/preferences";
+import { forgetSavedData } from "../savedData";
 
 const KEYS = {
   serverUrl: "rescuenet.serverUrl",
@@ -99,7 +100,9 @@ export async function saveServerUrl(url) {
   await Promise.all([
     write(KEYS.serverUrl, url),
     write(KEYS.setupDone, "1"),
+    // The saved lists belong to the old server: drop them with the login.
     changed ? write(KEYS.token, "") : Promise.resolve(),
+    changed ? forgetSavedData() : Promise.resolve(),
   ]);
   return { changed, signedOut };
 }

@@ -20,6 +20,7 @@
 // whether trying again later makes sense (lib/outboxRules.js).
 
 import { apiFetch } from "./apiClient";
+import { recallResponse, rememberResponse, savedEpoch } from "./savedData";
 
 const EMERGENCY_HINT = "If you're in danger, call your local emergency number.";
 
@@ -199,15 +200,30 @@ export async function updateShelter(id, changes) {
 
 const READ_FAILURE_KINDS = { 400: "bad_request", 401: "unauthorized", 404: "not_found" };
 
+// The app can keep the last good answer of a few lists (lib/savedData.js; the
+// website keeps nothing). When the server cannot be reached, or is failing, the
+// read then succeeds with that copy and `savedAt` (ms) says when it was saved, so
+// the screen can show "Saved data from <time>, not live". A live answer has no
+// `savedAt`.
 async function getJson(path, { signal } = {}) {
+  const epoch = savedEpoch();
+  const fallback = async (failure) => {
+    const saved = await recallResponse(path);
+    return saved ? { ok: true, data: saved.data, savedAt: saved.savedAt } : failure;
+  };
   try {
     const res = await apiFetch(path, { cache: "no-store", signal });
     const data = await res.json().catch(() => null);
-    if (res.ok) return { ok: true, data };
-    return { ok: false, kind: READ_FAILURE_KINDS[res.status] ?? "server", status: res.status, message: data?.error ?? GENERIC_ERROR };
+    if (res.ok) {
+      rememberResponse(path, data, epoch);
+      return { ok: true, data };
+    }
+    const failure = { ok: false, kind: READ_FAILURE_KINDS[res.status] ?? "server", status: res.status, message: data?.error ?? GENERIC_ERROR };
+    // Only "the server is failing" falls back to a saved copy: a 401 or 404 is an answer.
+    return res.status >= 500 ? await fallback(failure) : failure;
   } catch (err) {
     if (err?.name === "AbortError") return { ok: false, kind: "aborted", message: "" };
-    return { ok: false, kind: "network", message: "Couldn't reach the server" };
+    return fallback({ ok: false, kind: "network", message: "Couldn't reach the server" });
   }
 }
 

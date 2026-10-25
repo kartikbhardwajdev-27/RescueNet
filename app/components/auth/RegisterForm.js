@@ -6,6 +6,7 @@ import { Building2, Check, LoaderCircle, MapPin, UserRound, X } from "lucide-rea
 import { useAuth } from "@/components/AuthProvider";
 import Card from "@/components/Card";
 import { useToast } from "@/components/SosProvider";
+import { deviceGeolocation } from "@/lib/devicePosition";
 import {
   ORG_TYPES,
   PASSWORD_MAX_BYTES,
@@ -86,13 +87,14 @@ export default function RegisterForm() {
   }
 
   function handleUseLocation() {
-    if (!navigator.geolocation) {
+    const geolocation = deviceGeolocation();
+    if (!geolocation) {
       setLocationError("Your browser doesn't support location. You can still sign up without it.");
       return;
     }
     setLocating(true);
     setLocationError("");
-    navigator.geolocation.getCurrentPosition(
+    geolocation.getCurrentPosition(
       ({ coords }) => {
         setLocation({
           type: "Point",

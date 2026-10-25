@@ -18,6 +18,7 @@
 //      first-run screen, the native HTTP and storage code) and REPLACES a few
 //      website files with app versions that export the same things:
 //        lib/apiClient.js  lib/clientSession.js  lib/incidentLinks.js
+//        lib/savedData.js  lib/devicePosition.js  components/map/mapRuntime.js
 //        components/PlatformGate.js  components/platformNav.js
 //        components/ServiceWorkerRegister.js
 //      The website's own versions of those are tiny and know nothing about the

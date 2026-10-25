@@ -1,5 +1,6 @@
-import { CircleAlert, Compass, HousePlus, Info, LoaderCircle, LocateFixed, MapPinOff, RefreshCw, TriangleAlert } from "lucide-react";
+import { CircleAlert, Compass, History, HousePlus, Info, LoaderCircle, LocateFixed, MapPinOff, RefreshCw, TriangleAlert } from "lucide-react";
 import { ErrorState } from "@/components/home/states";
+import { formatSavedTime } from "@/components/SavedDataBanner";
 import { toneClasses } from "@/components/home/tones";
 import { LEGEND_ITEMS } from "./mapMeta";
 
@@ -136,7 +137,8 @@ function Notice({ icon: Icon, tone = "info", children, action }) {
 //   baseMapMissing   the .pmtiles file isn't there (see docs/OFFLINE_MAP.md)
 //   outsideCoverage  the view is outside the offline tiles
 //   empty            loaded fine, but nothing to plot
-export function TopNotices({ loading, problem, baseMapMissing, outsideCoverage, empty, children }) {
+//   savedAt          (Android app) the markers are a copy saved on the phone, from this time (ms)
+export function TopNotices({ loading, problem, baseMapMissing, outsideCoverage, empty, savedAt = null, children }) {
   return (
     // pr-12 keeps the panels clear of the zoom buttons at the top right on a phone.
     <div className="pointer-events-none absolute inset-x-3 top-3 z-10 flex flex-col items-center gap-2 pr-12 md:inset-x-16 md:pr-0">
@@ -166,6 +168,11 @@ export function TopNotices({ loading, problem, baseMapMissing, outsideCoverage, 
           }
         >
           {problem.text}
+        </Notice>
+      )}
+      {savedAt !== null && (
+        <Notice icon={History} tone="warn">
+          Saved data from {formatSavedTime(savedAt)}, not live
         </Notice>
       )}
       {outsideCoverage && (

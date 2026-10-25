@@ -4,6 +4,7 @@ import { useEffect, useSyncExternalStore } from "react";
 import { Laptop, LoaderCircle } from "lucide-react";
 import Card from "@/components/Card";
 import Logo from "@/components/Logo";
+import { askLocationPermissionIfNew } from "@/lib/devicePosition";
 import ServerAddressForm from "./ServerAddressForm";
 import { getSnapshot, loadSettings, markSetupDone, SERVER_SNAPSHOT, subscribe } from "@/lib/native/storage";
 
@@ -56,6 +57,11 @@ export default function MobileGate({ children }) {
     loadSettings();
   }, []);
 
+  // Once the first-run screen is out of the way, ask for location if Android has
+  // never been asked, so the permission dialog is not what an SOS has to wait for.
+  useEffect(() => {
+    if (loaded && setupDone) askLocationPermissionIfNew();
+  }, [loaded, setupDone]);
   if (!loaded) {
     return (
       <FullScreen>

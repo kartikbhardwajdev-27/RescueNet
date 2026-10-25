@@ -5,6 +5,7 @@ import { CalendarPlus } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { EmptyState, ErrorState, Skeleton } from "@/components/home/states";
 import { useToast } from "@/components/SosProvider";
+import SavedDataBanner from "@/components/SavedDataBanner";
 import usePolledResource from "@/components/usePolledResource";
 import useUserLocation from "@/components/useUserLocation";
 import { cancelEvent, fetchEvents, joinEvent, leaveEvent } from "@/lib/api";
@@ -78,6 +79,7 @@ export default function EventsView() {
 
   return (
     <div className="@container">
+      <SavedDataBanner savedAt={events.savedAt} className="mb-4" />
       {isOrg && (
         <div className="mb-4 flex justify-end">
           <button

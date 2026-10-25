@@ -6,6 +6,7 @@
 // server's origin. Instead it asks for the token when it logs in or registers
 // (returnToken), keeps it with the Capacitor Preferences plugin, and
 // lib/native/http.js sends it as `Authorization: Bearer <jwt>`.
+import { forgetSavedData } from "./savedData";
 import { clearToken, getToken, saveToken } from "./native/storage";
 
 const OLD_SERVER_ERROR = "This server is too old for the app. Update RescueNet on the laptop and try again.";
@@ -27,14 +28,18 @@ export async function keepSignIn(response) {
 }
 
 // The server said the token is not valid (expired, or from another server): stop
-// sending it.
+// sending it, and drop the saved lists, which were fetched as that person.
 export async function notLoggedIn() {
-  if (getToken()) await clearToken();
+  if (getToken()) {
+    await clearToken();
+    await forgetSavedData();
+  }
 }
 
 // The login lives on this phone, so logging out always works here, even with the
-// laptop out of reach.
+// laptop out of reach. The saved lists go with it.
 export async function signOutHere() {
-  await notLoggedIn();
+  await clearToken();
+  await forgetSavedData();
   return true;
 }

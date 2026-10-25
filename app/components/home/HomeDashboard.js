@@ -1,6 +1,7 @@
 "use client";
 
 import { fetchIncidents, fetchShelters, fetchStats } from "@/lib/api";
+import SavedDataBanner, { oldestSavedAt } from "@/components/SavedDataBanner";
 import usePolledResource from "@/components/usePolledResource";
 import useUserLocation from "@/components/useUserLocation";
 import ActivityCard from "./ActivityCard";
@@ -26,6 +27,7 @@ export default function HomeDashboard() {
   return (
     <div className="@container">
       <div className="grid grid-cols-1 gap-4 @3xl:grid-cols-12">
+        <SavedDataBanner savedAt={oldestSavedAt(stats, incidents, shelters)} className="@3xl:order-1 @3xl:col-span-12" />
         <StatusStrip resource={stats} className="@3xl:order-1 @3xl:col-span-12" />
         <Hero className="@3xl:order-2 @3xl:col-span-7" />
         <StatsRow resource={stats} className="@3xl:order-4 @3xl:col-span-12" />
