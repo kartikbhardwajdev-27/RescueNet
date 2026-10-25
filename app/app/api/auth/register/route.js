@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import { assertAuthConfigured, setAuthCookie } from "@/lib/auth";
+import { assertAuthConfigured, setAuthCookie, tokenResponse, wantsToken } from "@/lib/auth";
 import connectDB from "@/lib/db";
 import { badBody, errorResponse, readJsonBody } from "@/lib/http";
 import { rateLimit } from "@/lib/rateLimit";
@@ -43,6 +43,7 @@ export async function POST(request) {
     throw err;
   }
 
+  if (wantsToken(body)) return tokenResponse(user, 201);
   await setAuthCookie(user);
   return Response.json(user, { status: 201 });
 }

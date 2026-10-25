@@ -1,4 +1,5 @@
 import { BookOpen, CalendarDays, FilePlus, House, HousePlus, Info, Map as MapIcon } from "lucide-react";
+import { PLATFORM_NAV_ITEMS } from "./platformNav";
 
 // `mobile` decides where the item lives under 768px: "tab" = bottom tab bar,
 // "top" = icon button in the top bar. `shortLabel` is for tight tab labels.
@@ -12,6 +13,7 @@ export const NAV_ITEMS = [
   { href: "/events", label: "Events", icon: CalendarDays, mobile: "top" },
   { href: "/resources", label: "Resources", icon: BookOpen, mobile: "top" },
   { href: "/about", label: "About", icon: Info, mobile: "top" },
+  ...PLATFORM_NAV_ITEMS,
 ];
 
 export function isActive(pathname, href) {

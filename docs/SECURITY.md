@@ -94,6 +94,67 @@ before they reach a query.
 - Errors: unexpected failures return a bare 500 with no stack, path, host or driver
   text (tested with the database unreachable).
 
+## The Android app (Steps 19 to 22)
+
+The APK is the same UI as a static export. It has no server of its own: it talks
+to the RescueNet server on the laptop. These are the security decisions that came
+with that. Nothing here changes how the website works.
+
+**Login uses a bearer token, not a cookie.** The app's pages are files inside the
+APK, not served from the laptop's origin, so the server's cookie cannot be used.
+`POST /api/auth/login` and `POST /api/auth/register` return the same JWT the
+cookie would have held **only when the body says `"returnToken": true`** (and set
+no cookie in that case); every other client gets exactly what it got before. The
+server accepts `Authorization: Bearer <jwt>` in addition to the cookie
+(`lib/auth.js`, `lib/bearer.js`): the signature, expiry and algorithm are checked
+the same way, and the role is still read from the database on every request. A
+bearer header that does not verify makes the request anonymous (the cookie does
+not rescue it); an `Authorization` header of another kind (Basic) is ignored.
+
+**The cross-site guard and CORS are unchanged.** A browser never attaches an
+`Authorization` header by itself, so the bearer path gives another website nothing
+to ride on, and `proxy.js` still refuses a write that carries a foreign `Origin`
+or `Sec-Fetch-Site: cross-site`, with or without a bearer header (tested). The
+app's requests are made natively by Android (CapacitorHttp), so CORS does not
+apply to them and the server sends **no** `Access-Control-*` header to anyone.
+Native requests carry no `Origin` header, which is why the guard lets them through.
+Rate limits and input validation are the same code paths as before.
+
+**The token is stored unprotected on the phone.** It lives in the Capacitor
+Preferences plugin (Android SharedPreferences, private to the app), like a
+browser keeps a cookie in its profile. Other apps cannot read it; someone with
+root access or an unlocked, USB-debugging phone could. Backups are switched off
+(`android:allowBackup="false"`) so it is not copied into Android backups.
+Logging out forgets the token on the phone, but a JWT cannot be cancelled on the
+server: a copy would stay valid until it expires (7 days), exactly as a copied
+cookie does on the website. Changing the "Laptop address" also forgets the token,
+so a login is never sent to a server it was not issued by.
+
+**Cleartext (plain http) is allowed, deliberately.** Android 9 and later refuse
+plain-http traffic unless the app opts in, and a laptop on a WiFi has no
+certificate, so the app sets `android:usesCleartextTraffic="true"`. The trade-off:
+anyone on the same WiFi can read or alter what travels between the phone and the
+laptop, including the login token and the text of reports. What limits it:
+
+- the app contacts **one** address, the one typed on the first-run screen or in
+  Settings, and no other host (its own files, map and fonts are inside the APK);
+- plain `http://` is accepted only for addresses on a private network (10.x,
+  172.16-31.x, 192.168.x, link-local, loopback, `localhost`, `.local`/`.lan`
+  names); anything else must be `https://` (`lib/serverAddress.js`, and
+  re-checked before every request in `mobile/overlay/lib/native/http.js`);
+- the address cannot contain a username or password.
+
+Use your own hotspot or a network you trust. The proper fix is https on the laptop
+with a certificate the phone trusts; that is not set up.
+
+**The page inside the app has a strict Content-Security-Policy** (a `<meta>` tag,
+since there are no headers): only the app's own files, and no network access from
+the page at all. The app's API calls are made natively, outside the page.
+
+**Not verified on a real phone or emulator in this build**, so these are design
+statements, not test results: how Android treats the local-network request, the
+Play Protect warning, and the permission dialogs. See `docs/APK_SETUP.md`.
+
 ## NOT fixed, and why
 
 - **Anyone can register as an organization.** There is no verification, so anyone

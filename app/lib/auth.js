@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 import { cookies, headers } from "next/headers";
+import { bearerTokenFrom } from "@/lib/bearer";
 import connectDB from "@/lib/db";
 import User from "@/models/User";
 
@@ -73,13 +74,41 @@ export async function clearAuthCookie() {
   cookieStore.delete(AUTH_COOKIE);
 }
 
+// Sign-in for a client that cannot keep our cookie: the Android app, whose pages
+// are not served from this origin. It asks for a token with { returnToken: true }
+// in the login or register body, gets the same JWT the cookie would have held in
+// the response, and sends it back as `Authorization: Bearer <jwt>`. No cookie is
+// set for such a client. The website never asks, so for it nothing changes.
+export function wantsToken(body) {
+  return body.returnToken === true;
+}
+
+export function tokenResponse(user, status = 200) {
+  return Response.json({ ...user.toJSON(), token: signToken(user) }, { status, headers: { "Cache-Control": "no-store" } });
+}
+
+// The JWT this request carries: the bearer token if there is a bearer header,
+// otherwise the login cookie, otherwise null. An invalid bearer token is not
+// "rescued" by a cookie: the request is anonymous.
+//
+// The bearer path adds no cross-site risk: a browser never attaches this header
+// by itself, so a page on another site cannot make a request that carries it, and
+// proxy.js still refuses cross-site writes whether or not the header is present.
+// cookies() is awaited first on purpose: it opts the caller out of build-time
+// prerendering, so a build without JWT_SECRET never reaches the secret check.
+async function readToken() {
+  const cookieStore = await cookies();
+  const bearer = bearerTokenFrom((await headers()).get("authorization"));
+  if (bearer !== undefined) return bearer;
+  return cookieStore.get(AUTH_COOKIE)?.value ?? null;
+}
+
 // The id of the person whose login cookie this request carries, or null. Checks
 // the signature and expiry but does not read the database, so it is cheap enough
 // for public lists that only need to know "is this one mine?".
 export async function getSessionUserId() {
-  const cookieStore = await cookies();
+  const token = await readToken();
   getSecret();
-  const token = cookieStore.get(AUTH_COOKIE)?.value;
   if (!token) return null;
   const payload = verifyToken(token);
   return payload && typeof payload.id === "string" && mongoose.isValidObjectId(payload.id) ? payload.id : null;
@@ -88,12 +117,10 @@ export async function getSessionUserId() {
 // The logged-in user (without passwordHash), or null. Read-only, so it is safe
 // to call from route handlers and Server Components alike.
 export async function getCurrentUser() {
-  // cookies() first: it opts the caller out of build-time prerendering, so a
-  // build without JWT_SECRET never reaches the check below.
-  const cookieStore = await cookies();
+  // readToken() calls cookies() first: it opts the caller out of build-time
+  // prerendering, so a build without JWT_SECRET never reaches the check below.
+  const token = await readToken();
   getSecret();
-
-  const token = cookieStore.get(AUTH_COOKIE)?.value;
   if (!token) return null;
 
   const payload = verifyToken(token);

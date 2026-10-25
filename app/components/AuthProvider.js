@@ -1,6 +1,8 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { apiFetch } from "@/lib/apiClient";
+import { keepSignIn, notLoggedIn, signInBody, signOutHere } from "@/lib/clientSession";
 import useOutbox from "./useOutbox";
 
 const AuthContext = createContext(null);
@@ -21,9 +23,13 @@ const GENERIC_ERROR = "Something went wrong. Please try again.";
 // that way (the account page would send you to the login screen while offline).
 async function fetchMe() {
   try {
-    const res = await fetch("/api/auth/me", { cache: "no-store" });
+    const res = await apiFetch("/api/auth/me", { cache: "no-store" });
     if (res.ok) return { user: await res.json() };
-    return res.status === 401 ? { user: null } : { user: null, unreachable: true };
+    if (res.status === 401) {
+      await notLoggedIn();
+      return { user: null };
+    }
+    return { user: null, unreachable: true };
   } catch {
     return { user: null, unreachable: true };
   }
@@ -31,7 +37,7 @@ async function fetchMe() {
 
 async function postJson(path, body) {
   try {
-    const res = await fetch(path, {
+    const res = await apiFetch(path, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: body === undefined ? undefined : JSON.stringify(body),
@@ -52,6 +58,13 @@ function toResult({ ok, status, data }) {
     error: data?.error ?? (status === 0 ? NETWORK_ERROR : GENERIC_ERROR),
     errors: data?.errors ?? {},
   };
+}
+
+// Login and registration: post the form, let clientSession keep whatever this
+// client needs to stay logged in (nothing for the website's cookie), shape the
+// answer for the form.
+async function signIn(path, body) {
+  return toResult(await keepSignIn(await postJson(path, signInBody(body))));
 }
 
 export default function AuthProvider({ children }) {
@@ -110,7 +123,7 @@ export default function AuthProvider({ children }) {
 
   const login = useCallback(async ({ email, password }) => {
     version.current++;
-    const result = toResult(await postJson("/api/auth/login", { email, password }));
+    const result = await signIn("/api/auth/login", { email, password });
     if (result.ok) {
       setUser(result.user);
       setUnreachable(false);
@@ -120,7 +133,7 @@ export default function AuthProvider({ children }) {
 
   const register = useCallback(async (details) => {
     version.current++;
-    const result = toResult(await postJson("/api/auth/register", details));
+    const result = await signIn("/api/auth/register", details);
     if (result.ok) {
       setUser(result.user);
       setUnreachable(false);
@@ -131,6 +144,12 @@ export default function AuthProvider({ children }) {
   const logout = useCallback(async () => {
     version.current++;
     const response = await postJson("/api/auth/logout");
+    // The app's login lives on the phone, so it can always log out, even with
+    // the laptop out of reach. The website needs the server to drop its cookie.
+    if (await signOutHere()) {
+      setUser(null);
+      return { ok: true };
+    }
     if (response.ok) setUser(null);
     return response.ok ? { ok: true } : toResult(response);
   }, []);

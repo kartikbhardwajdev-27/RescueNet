@@ -1,8 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!--
+        RescueNet talks to a laptop on the local network, which has no certificate,
+        so the app must be allowed to make plain-http requests (cleartext). The
+        app only ever contacts the one address the person types in, and refuses
+        plain http to anything that is not a local-network address (see
+        lib/serverAddress.js). Trade-off, in docs/SECURITY.md: anyone on that
+        network could read or change the traffic, including the login token.
+
+        allowBackup is off so the login token and the saved data on the phone are
+        not copied into Android backups.
+    -->
     <application
-        android:allowBackup="true"
+        android:allowBackup="false"
+        android:usesCleartextTraffic="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"

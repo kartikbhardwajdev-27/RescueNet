@@ -15,6 +15,7 @@
 // components/useOutbox.js and start it with <OutboxRunner />.
 
 import { createIncident, sendSos } from "@/lib/api";
+import { apiFetch } from "@/lib/apiClient";
 import {
   byNewest,
   isExpiredSent,
@@ -118,7 +119,7 @@ async function checkServer() {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), HEALTH_TIMEOUT_MS);
   try {
-    const res = await fetch("/api/health", { cache: "no-store", signal: controller.signal });
+    const res = await apiFetch("/api/health", { cache: "no-store", signal: controller.signal });
     const body = await res.json().catch(() => null);
     setServerState(res.ok && body?.db === "connected" ? "online" : "degraded");
   } catch {

@@ -5,6 +5,7 @@ import AuthProvider from "@/components/AuthProvider";
 import BottomNav from "@/components/BottomNav";
 import ConnectivityBanner from "@/components/ConnectivityBanner";
 import OutboxRunner from "@/components/OutboxRunner";
+import PlatformGate from "@/components/PlatformGate";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import Sidebar from "@/components/Sidebar";
 import SosProvider from "@/components/SosProvider";
@@ -28,19 +29,21 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" className="h-full antialiased">
       <body className="min-h-full">
-        <AuthProvider>
-          <SosProvider>
-            <OutboxRunner />
-            <ServiceWorkerRegister />
-            <Sidebar />
-            <TopBar />
-            <ConnectivityBanner />
-            <main className="min-h-dvh pt-24 pb-32 md:pt-0 md:pb-0 md:pl-72">
-              <div className="mx-auto max-w-6xl p-4 sm:p-6 md:p-8">{children}</div>
-            </main>
-            <BottomNav />
-          </SosProvider>
-        </AuthProvider>
+        <PlatformGate>
+          <AuthProvider>
+            <SosProvider>
+              <OutboxRunner />
+              <ServiceWorkerRegister />
+              <Sidebar />
+              <TopBar />
+              <ConnectivityBanner />
+              <main className="min-h-dvh pt-24 pb-32 md:pt-0 md:pb-0 md:pl-72">
+                <div className="mx-auto max-w-6xl p-4 sm:p-6 md:p-8">{children}</div>
+              </main>
+              <BottomNav />
+            </SosProvider>
+          </AuthProvider>
+        </PlatformGate>
       </body>
     </html>
   );

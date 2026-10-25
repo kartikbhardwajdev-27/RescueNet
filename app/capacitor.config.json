@@ -1,5 +1,17 @@
 {
   "appId": "in.rescuenet.app",
   "appName": "RescueNet",
-  "webDir": "out"
+  "webDir": "out",
+  "backgroundColor": "#0b0f1a",
+  "android": {
+    "allowMixedContent": false
+  },
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": false
+    },
+    "SystemBars": {
+      "style": "DARK"
+    }
+  }
 }

@@ -19,6 +19,8 @@
 // Retry-After header of a 429, else 0), which the offline outbox uses to decide
 // whether trying again later makes sense (lib/outboxRules.js).
 
+import { apiFetch } from "./apiClient";
+
 const EMERGENCY_HINT = "If you're in danger, call your local emergency number.";
 
 // Some SOS messages end with the emergency-number reminder. Screens that already
@@ -33,7 +35,7 @@ async function sendJson(method, path, body, { headers, timeoutMs } = {}) {
   const controller = timeoutMs ? new AbortController() : null;
   const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
   try {
-    const res = await fetch(path, {
+    const res = await apiFetch(path, {
       method,
       headers: { "Content-Type": "application/json", ...headers },
       body: JSON.stringify(body),
@@ -199,7 +201,7 @@ const READ_FAILURE_KINDS = { 400: "bad_request", 401: "unauthorized", 404: "not_
 
 async function getJson(path, { signal } = {}) {
   try {
-    const res = await fetch(path, { cache: "no-store", signal });
+    const res = await apiFetch(path, { cache: "no-store", signal });
     const data = await res.json().catch(() => null);
     if (res.ok) return { ok: true, data };
     return { ok: false, kind: READ_FAILURE_KINDS[res.status] ?? "server", status: res.status, message: data?.error ?? GENERIC_ERROR };
