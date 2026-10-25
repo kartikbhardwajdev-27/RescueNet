@@ -12,6 +12,8 @@
     "check:triage": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/check-triage.mjs",
     "check:nearest": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/check-nearest.mjs",
     "check:mobile": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/check-mobile.mjs",
+    "check:routing": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/check-routing.mjs",
+    "routing:build": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/build-routing.mjs",
     "demo:seed": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/seed-shelters.mjs && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/seed-demo.mjs",
     "demo:wipe": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/seed-demo.mjs --wipe",
     "demo:clear": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/seed-demo.mjs --clear",

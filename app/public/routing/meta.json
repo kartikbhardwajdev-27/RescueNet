@@ -1,0 +1,50 @@
+{
+  "name": "RescueNet road graph",
+  "file": "tricity-roads.bin.gz",
+  "format": "RNRG",
+  "formatVersion": 1,
+  "builtAt": "2026-10-25T20:19:27.262Z",
+  "bbox": [
+    76.6,
+    30.55,
+    76.95,
+    30.85
+  ],
+  "bboxOrder": "west,south,east,north",
+  "source": {
+    "name": "OpenStreetMap, Geofabrik extract asia/india/northern-zone",
+    "url": "https://download.geofabrik.de/asia/india/northern-zone-latest.osm.pbf",
+    "extractDate": "2026-10-24T23:06:18.000Z",
+    "licence": "ODbL 1.0",
+    "attribution": "© OpenStreetMap contributors"
+  },
+  "counts": {
+    "nodes": 67478,
+    "edges": 90892,
+    "walkEdges": 90892,
+    "driveEdges": 86754,
+    "shapePoints": 154316,
+    "streetNames": 150
+  },
+  "lengthKm": {
+    "walk": 8393.4,
+    "drive": 7817.9
+  },
+  "coverage": {
+    "note": "Share of the roads found in the box that are in the biggest connected piece and so can be routed on.",
+    "walkLengthKept": "99.0%",
+    "driveLengthKept": "99.0%",
+    "walkPieces": 324,
+    "drivePieces": 246,
+    "cells1km": {
+      "total": 1116,
+      "withWalkRoad": 971,
+      "withDriveRoad": 962
+    }
+  },
+  "bytes": {
+    "gzip": 1024378,
+    "uncompressed": 1443542
+  },
+  "sha256": "db7e181d7287119cd7efb437bd53d55b2af4dd9f56b25fc10ac750843fd57bc3"
+}

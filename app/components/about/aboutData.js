@@ -52,6 +52,7 @@ export const KNOWN_LIMITS = [
 
 export const CREDITS = [
   "Map data © OpenStreetMap contributors, available under the Open Database License.",
+  "Road data for route guidance © OpenStreetMap contributors (Open Database License), taken from a Geofabrik extract once and stored in the app. It is not downloaded while the app runs.",
   "Basemap design and map file tooling by Protomaps.",
   "Fonts: Space Grotesk and Inter (bundled), Noto Sans for the map labels. All are open-licence fonts.",
 ];

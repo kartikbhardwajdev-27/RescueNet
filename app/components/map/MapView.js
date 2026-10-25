@@ -145,7 +145,8 @@ export default function MapView() {
       center: DEFAULT_CENTER,
       zoom: DEFAULT_ZOOM,
       maxZoom: MAX_ZOOM,
-      attributionControl: { compact: true },
+      // Not compact: the OpenStreetMap credit must be readable, not tucked behind a button.
+      attributionControl: { compact: false },
       renderWorldCopies: false,
       // North stays up: rotating and tilting only disorient on a rescue map.
       dragRotate: false,
