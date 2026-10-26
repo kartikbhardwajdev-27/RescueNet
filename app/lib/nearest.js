@@ -116,6 +116,29 @@ export function buildGuidance({ from, source, shelters, incidents }) {
   };
 }
 
+// The same facts as buildGuidance, for one chosen shelter instead of the nearest one
+// (straight line only: the fallback when road directions are not available).
+export function guidanceFor({ from, source, shelter, incidents }) {
+  const target = pointOf(shelter);
+  const km = distanceKm(from, target);
+  const bearing = bearingDegrees(from, target);
+  const nearIncidents = dangerousIncidentsNear(target, incidents);
+  return {
+    shelter,
+    distanceKm: km,
+    bearing,
+    direction: km < SAME_PLACE_KM ? null : compassDirection(bearing),
+    from,
+    source,
+    target,
+    line: [
+      [from.lng, from.lat],
+      [target.lng, target.lat],
+    ],
+    warning: nearIncidents.length > 0 ? { count: nearIncidents.length, nearestKm: nearIncidents[0].distanceKm } : null,
+  };
+}
+
 // "850 m NE", "3.4 km SW", or "here" when the person is at the shelter.
 export function formatGuidance(km, direction, formatDistance) {
   return direction ? `${formatDistance(km)} ${direction}` : "right here";

@@ -45,3 +45,36 @@ export async function askLocationPermissionIfNew() {
     // Switched off, or the plugin is unavailable: the request is made when a position is needed.
   }
 }
+
+// Follows the device's position (the "Start" mode of road directions); same shape as
+// the website's version in lib/devicePosition.js.
+//   onFix({ lat, lon, accuracy })   for every new position; accuracy is in metres
+//   onError(code)                    "denied" | "unavailable" | "timeout" | "unsupported"
+// Returns stop(). Android only delivers positions while the app is open and the
+// screen is on: there is no background tracking.
+export function watchDevicePosition(onFix, onError, { highAccuracy = true } = {}) {
+  let stopped = false;
+  let watchId = null;
+  Geolocation.watchPosition({ enableHighAccuracy: highAccuracy, timeout: 20_000, maximumAge: 2000 }, (position, error) => {
+    if (stopped) return;
+    if (error || !position) {
+      const code = positionError(error).code;
+      onError?.(code === 1 ? "denied" : code === 3 ? "timeout" : "unavailable");
+      return;
+    }
+    onFix({ lat: position.coords.latitude, lon: position.coords.longitude, accuracy: position.coords.accuracy });
+  }).then(
+    (id) => {
+      if (stopped) Geolocation.clearWatch({ id });
+      else watchId = id;
+    },
+    (error) => {
+      const code = positionError(error).code;
+      onError?.(code === 1 ? "denied" : "unavailable");
+    },
+  );
+  return () => {
+    stopped = true;
+    if (watchId !== null) Geolocation.clearWatch({ id: watchId });
+  };
+}

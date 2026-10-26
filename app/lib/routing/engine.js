@@ -22,12 +22,11 @@
 //     high or critical severity). A road that comes within a zone costs 10x, it is
 //     never blocked, and the result lists the zones the route still crosses.
 
+import { SNAP_LIMIT_M, ZONE_COST_FACTOR } from "./constants.js";
 import { FLAG_DRIVE, FLAG_ONEWAY, FLAG_ROUNDABOUT, FLAG_WALK, ROAD_CLASSES } from "./format.js";
 import { haversineM, MICRO, projectOnSegment } from "./geometry.js";
 
-export const SNAP_LIMIT_M = 300;
-export const ZONE_RADIUS_M = 200;
-export const ZONE_COST_FACTOR = 10;
+export { SNAP_LIMIT_M, ZONE_COST_FACTOR, ZONE_RADIUS_M } from "./constants.js";
 // A stretch of road shorter than this is treated as no stretch at all.
 const MIN_PART_M = 0.05;
 
@@ -128,27 +127,6 @@ export class MinHeap {
     bigger.set(this.nodes);
     this.nodes = bigger;
   }
-}
-
-// ---- avoid zones ----
-
-// Incidents that make a road dangerous to route through.
-export const AVOID_TYPES = ["flood", "fire", "earthquake"];
-export const AVOID_SEVERITIES = ["high", "critical"];
-
-// Turns incidents (as the API returns them: { _id, type, severity, status,
-// location: { coordinates: [lng, lat] } }) into avoid zones. Resolved incidents and
-// other types or severities make none.
-export function zonesFromIncidents(incidents, radiusM = ZONE_RADIUS_M) {
-  const zones = [];
-  for (const incident of incidents ?? []) {
-    if (incident.status === "resolved") continue;
-    if (!AVOID_TYPES.includes(incident.type) || !AVOID_SEVERITIES.includes(incident.severity)) continue;
-    const coordinates = incident.location?.coordinates;
-    if (!Array.isArray(coordinates) || !Number.isFinite(coordinates[0]) || !Number.isFinite(coordinates[1])) continue;
-    zones.push({ id: String(incident._id), type: incident.type, severity: incident.severity, lat: coordinates[1], lon: coordinates[0], radiusM });
-  }
-  return zones;
 }
 
 // ---- the router ----

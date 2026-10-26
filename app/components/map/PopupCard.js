@@ -1,4 +1,4 @@
-import { Clock, HousePlus, MapPin, Phone, X } from "lucide-react";
+import { Clock, HousePlus, MapPin, Navigation, Phone, X } from "lucide-react";
 import DemoTag from "@/components/DemoTag";
 import { toneClasses } from "@/components/home/tones";
 import SosBadge from "@/components/incidents/SosBadge";
@@ -77,7 +77,7 @@ function IncidentDetails({ incident, now, onClose }) {
   );
 }
 
-function ShelterDetails({ shelter, warning, onClose }) {
+function ShelterDetails({ shelter, warning, onNavigate, onClose }) {
   const status = SHELTER_STATUS_META[shelter.status] ?? SHELTER_STATUS_META.open;
 
   return (
@@ -117,19 +117,29 @@ function ShelterDetails({ shelter, warning, onClose }) {
           {shelter.contactPhone}
         </a>
       )}
+      {onNavigate && (
+        <button
+          type="button"
+          onClick={onNavigate}
+          className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-brand-gradient px-4 text-sm font-bold text-on-brand shadow-brand transition-all duration-150 hover:brightness-110 motion-safe:active:scale-95"
+        >
+          <Navigation className="size-4" aria-hidden="true" />
+          Navigate
+        </button>
+      )}
     </>
   );
 }
 
 // The card inside the map popup. `now` is when the data arrived, so the
 // "reported X ago" text is stable between refreshes (see lib/time.js).
-export default function PopupCard({ kind, record, warning, now, onClose }) {
+export default function PopupCard({ kind, record, warning, now, onNavigate, onClose }) {
   return (
     <div className="w-[min(20rem,calc(100vw-3rem))] p-4">
       {kind === "incident" ? (
         <IncidentDetails incident={record} now={now} onClose={onClose} />
       ) : (
-        <ShelterDetails shelter={record} warning={warning} onClose={onClose} />
+        <ShelterDetails shelter={record} warning={warning} onNavigate={onNavigate} onClose={onClose} />
       )}
     </div>
   );

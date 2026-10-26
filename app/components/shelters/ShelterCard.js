@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { Compass, Map as MapIcon, MapPin, Pencil, Phone } from "lucide-react";
+import { Compass, Map as MapIcon, MapPin, Navigation, Pencil, Phone } from "lucide-react";
 import Card from "@/components/Card";
 import { toneClasses } from "@/components/home/tones";
 import { formatDistance } from "@/lib/geo";
-import { mapHref } from "@/lib/mapFocus";
+import { mapHref, navigateHref } from "@/lib/mapFocus";
 import CapacityBar from "./CapacityBar";
 import NearIncidentBadge from "./NearIncidentBadge";
 import { SHELTER_STATUS_META } from "./statusMeta";
@@ -70,6 +70,13 @@ export default function ShelterCard({ shelter, distanceKm, direction = null, war
       </div>
 
       <div className="mt-auto flex flex-wrap items-center gap-2 pt-1">
+        <Link
+          href={navigateHref(shelter._id)}
+          className="flex items-center gap-2 rounded-xl bg-brand-gradient px-3.5 py-2 text-sm font-bold text-on-brand shadow-brand transition-all duration-150 hover:brightness-110 motion-safe:active:scale-95"
+        >
+          <Navigation className="size-4" aria-hidden="true" />
+          Navigate
+        </Link>
         <Link
           href={mapHref("shelter", shelter._id)}
           className="flex items-center gap-2 rounded-xl border border-line-strong bg-white/5 px-3.5 py-2 text-sm font-semibold transition-all duration-150 hover:bg-white/10 motion-safe:active:scale-95"

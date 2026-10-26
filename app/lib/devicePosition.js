@@ -15,3 +15,22 @@ export const deviceGeolocation = () => (typeof navigator === "undefined" ? undef
 
 // The end of the "permission was denied" message: where to turn location back on.
 export const LOCATION_DENIED_HELP = "Allow location in your browser and try again.";
+
+// Follows the device's position (the "Start" mode of road directions).
+//   onFix({ lat, lon, accuracy })   for every new position; accuracy is in metres
+//   onError(code)                    "denied" | "unavailable" | "timeout" | "unsupported"
+// Returns stop(), which ends the watching. The browser keeps sending positions only
+// while the page is open and the screen is on.
+export function watchDevicePosition(onFix, onError, { highAccuracy = true } = {}) {
+  const geolocation = deviceGeolocation();
+  if (!geolocation || typeof geolocation.watchPosition !== "function") {
+    onError?.("unsupported");
+    return () => {};
+  }
+  const id = geolocation.watchPosition(
+    ({ coords }) => onFix({ lat: coords.latitude, lon: coords.longitude, accuracy: coords.accuracy }),
+    (error) => onError?.(error.code === 1 ? "denied" : error.code === 3 ? "timeout" : "unavailable"),
+    { enableHighAccuracy: highAccuracy, maximumAge: 2000, timeout: 20_000 },
+  );
+  return () => geolocation.clearWatch(id);
+}

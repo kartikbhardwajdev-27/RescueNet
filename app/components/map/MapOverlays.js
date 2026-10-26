@@ -1,4 +1,4 @@
-import { CircleAlert, Compass, History, HousePlus, Info, LoaderCircle, LocateFixed, MapPinOff, RefreshCw, TriangleAlert } from "lucide-react";
+import { CircleAlert, History, HousePlus, Info, LoaderCircle, LocateFixed, MapPinOff, Navigation, RefreshCw, TriangleAlert } from "lucide-react";
 import { ErrorState } from "@/components/home/states";
 import { formatSavedTime } from "@/components/SavedDataBanner";
 import { toneClasses } from "@/components/home/tones";
@@ -89,9 +89,9 @@ function NearestButton({ onClick, busy, disabled }) {
       {busy ? (
         <LoaderCircle className="size-5 motion-safe:animate-spin" aria-hidden="true" />
       ) : (
-        <Compass className="size-5 text-safe" aria-hidden="true" />
+        <Navigation className="size-5 text-safe" aria-hidden="true" />
       )}
-      {busy ? "Finding…" : "Nearest shelter"}
+      {busy ? "Finding…" : "Navigate to nearest shelter"}
     </button>
   );
 }

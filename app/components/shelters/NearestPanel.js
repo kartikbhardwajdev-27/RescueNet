@@ -25,8 +25,11 @@ function CloseButton({ onClear }) {
 //   onClear                              closes the panel
 //   onRetry                              asks again (offered when location was refused)
 //   children                             extra buttons ("Show details", "Show on map")
+//   heading                              the small title above the shelter's name
+//   notice                               a line of text above the straight-line note (why this is
+//                                        shown instead of road directions)
 // Always says it is a straight line: nothing here knows about roads.
-export default function NearestPanel({ request, guidance, incidentsKnown, onClear, onRetry, children }) {
+export default function NearestPanel({ request, guidance, incidentsKnown, onClear, onRetry, children, heading = "Nearest open shelter", notice = null }) {
   if (!request || request.phase === "locating") return null;
 
   if (request.phase === "need-location") {
@@ -76,12 +79,13 @@ export default function NearestPanel({ request, guidance, incidentsKnown, onClea
           <Compass className="size-5" aria-hidden="true" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-semibold tracking-wide text-ink-muted uppercase">Nearest open shelter</p>
+          <p className="text-xs font-semibold tracking-wide text-ink-muted uppercase">{heading}</p>
           <h2 className="mt-0.5 font-display text-base leading-tight font-bold break-words">{shelter.name}</h2>
           <p className="mt-1.5 text-sm font-semibold">
             {where}
             <span className="font-normal text-ink-muted"> · {free.toLocaleString("en-US")} {free === 1 ? "space" : "spaces"} free</span>
           </p>
+          {notice && <p className="mt-2 text-xs font-semibold text-warn">{notice}</p>}
           <p className="mt-1 text-xs text-ink-muted">{STRAIGHT_LINE_NOTE}</p>
           {warning && (
             <p className="mt-2.5">

@@ -155,7 +155,7 @@ export default function SheltersView() {
             {nearest.guidance && (
               <Link href="/map?nearest=1" className={nearestPanelButtonClass}>
                 <MapIcon className="size-3.5" aria-hidden="true" />
-                Show the line on the map
+                Navigate on the map
               </Link>
             )}
           </NearestPanel>

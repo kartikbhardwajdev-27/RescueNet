@@ -10,13 +10,17 @@ import Card from "@/components/Card";
 import { useToast } from "@/components/SosProvider";
 import { oldestSavedAt } from "@/components/SavedDataBanner";
 import usePolledResource from "@/components/usePolledResource";
-import useNearestShelter from "@/components/useNearestShelter";
 import useUserLocation from "@/components/useUserLocation";
-import NearestPanel, { nearestPanelButtonClass } from "@/components/shelters/NearestPanel";
+import NavigationPanel from "@/components/navigation/NavigationPanel";
+import { ensureRouteLayers, showRoute, showZones } from "@/components/navigation/routeLayers";
+import useNavigation from "@/components/navigation/useNavigation";
 import { fetchIncidents, fetchShelters } from "@/lib/api";
 import { describeLocationError, formatDistance, getCurrentLocation } from "@/lib/geo";
-import { parseFocus } from "@/lib/mapFocus";
+import { parseFocus, parseNavigate } from "@/lib/mapFocus";
 import { shelterWarnings } from "@/lib/nearest";
+import { getRoutingClient } from "@/lib/routing/client";
+import { nearestPanelButtonClass } from "@/components/shelters/NearestPanel";
+import { zonesFromIncidents } from "@/lib/routing/zones";
 import { BottomControls, LoadFailed, MapUnavailable, TopNotices } from "./MapOverlays";
 import PopupCard from "./PopupCard";
 import {
@@ -52,6 +56,13 @@ const GUIDANCE_PADDING = {
   wide: { top: 190, bottom: 130, left: 100, right: 100 },
 };
 
+// Fitting a whole road route in view: the directions panel is taller than the
+// straight-line one, so there is more room kept clear at the top.
+const ROUTE_PADDING = {
+  compact: { top: 300, bottom: 230, left: 40, right: 40 },
+  wide: { top: 230, bottom: 130, left: 100, right: 100 },
+};
+
 const EMPTY_LINE = { type: "FeatureCollection", features: [] };
 
 const hasSettled = (resource) => !(resource.loading && !resource.data);
@@ -72,6 +83,8 @@ export default function MapView() {
   const searchParams = useSearchParams();
   const focus = parseFocus(searchParams.get("focus"));
   const autoNearest = searchParams.get("nearest") === "1";
+  const navigateRaw = parseNavigate(searchParams.get("navigate"))?.raw ?? null;
+  const navigateId = parseNavigate(searchParams.get("navigate"))?.id ?? null;
   const focusRaw = focus?.raw ?? null;
   const focusKind = focus?.kind ?? null;
   const focusId = focus?.id ?? null;
@@ -93,6 +106,10 @@ export default function MapView() {
   const cameraDoneRef = useRef(null); // which camera move (focus link or fit) already ran
   const guidanceFitRef = useRef(null); // the "Nearest shelter" request the camera already moved for
   const autoNearestRef = useRef(false); // /map?nearest=1 has been acted on
+  const autoNavigateRef = useRef(null); // the /map?navigate= link that has been acted on
+  const routeFitRef = useRef(null); // the navigation request the camera already framed
+  const cameraFollowsRef = useRef(true); // "Start" keeps the person in view until the map is dragged
+  const [cameraPaused, setCameraPaused] = useState(false);
 
   // ---- data ----
 
@@ -122,10 +139,11 @@ export default function MapView() {
   const deviceLng = device?.lng ?? null;
   const deviceLat = device?.lat ?? null;
 
-  // ---- nearest shelter ----
+  // ---- road directions to a shelter (and the straight-line fallback) ----
 
-  const nearest = useNearestShelter({ device, shelters: shelters.data, incidents: incidents.data });
-  const { guidance } = nearest;
+  const navigation = useNavigation({ device, shelters: shelters.data, incidents: incidents.data });
+  // The straight-line guidance, only when road directions are not possible.
+  const guidance = navigation.fallbackGuidance;
   const warnings = useMemo(() => shelterWarnings(shelterList, incidents.data ?? []), [shelterList, incidents.data]);
   const guidanceFrom = guidance?.from ?? null;
   const guidanceTarget = guidance?.target ?? null;
@@ -163,7 +181,11 @@ export default function MapView() {
       if (!disposed) setMapInstance(map);
     });
     map.on("movestart", (event) => {
-      if (event.originalEvent) userMovedRef.current = true;
+      if (!event.originalEvent) return;
+      userMovedRef.current = true;
+      // Dragging the map while "Start" follows the person stops the camera following.
+      cameraFollowsRef.current = false;
+      setCameraPaused(true);
     });
     map.on("moveend", () => setOutsideCoverage(!insideCoverage(map.getCenter())));
     map.on("error", (event) => {
@@ -240,12 +262,16 @@ export default function MapView() {
     }
   }, [mapInstance, markerItems]);
 
-  // The person's own position.
+  // The person's own position: the live one while "Start" is following them.
+  const liveLng = navigation.liveFix?.lon ?? null;
+  const liveLat = navigation.liveFix?.lat ?? null;
+  const shownLng = liveLng ?? deviceLng;
+  const shownLat = liveLng === null ? deviceLat : liveLat;
   useEffect(() => {
-    if (!mapInstance || deviceLng === null) return;
-    const marker = new Marker({ element: createUserMarker() }).setLngLat([deviceLng, deviceLat]).addTo(mapInstance);
+    if (!mapInstance || shownLng === null) return;
+    const marker = new Marker({ element: createUserMarker() }).setLngLat([shownLng, shownLat]).addTo(mapInstance);
     return () => marker.remove();
-  }, [mapInstance, deviceLng, deviceLat]);
+  }, [mapInstance, shownLng, shownLat]);
 
   // The dashed straight line from the person to the nearest shelter. The source
   // and layers are added once the style is ready; the line itself follows the
@@ -277,6 +303,57 @@ export default function MapView() {
     );
   }, [mapInstance, guidance]);
 
+  // ---- the road route ----
+
+  useEffect(() => {
+    if (mapInstance) ensureRouteLayers(mapInstance);
+  }, [mapInstance]);
+
+  const navRoute = navigation.route;
+  const navSteps = navigation.steps;
+  const followStep = navigation.following ? (navigation.progress?.stepIndex ?? 0) : null;
+  const stepStart = followStep !== null && navSteps ? navSteps[followStep].startIndex : null;
+  const stepEnd = followStep !== null && navSteps ? navSteps[followStep].endIndex : null;
+  useEffect(() => {
+    if (mapInstance) showRoute(mapInstance, navRoute, stepStart === null ? null : [stepStart, stepEnd]);
+  }, [mapInstance, navRoute, stepStart, stepEnd]);
+
+  // The danger zones the route steers round, drawn while directions are on screen.
+  const navActive = navigation.request !== null;
+  const zones = useMemo(() => (navActive ? zonesFromIncidents(incidents.data) : []), [navActive, incidents.data]);
+  useEffect(() => {
+    if (mapInstance) showZones(mapInstance, zones);
+  }, [mapInstance, zones]);
+
+  // Frame the whole route once per press of a button and per change of Walk/Drive.
+  const fitKey = navigation.fitKey;
+  const navProfile = navigation.profile;
+  const following = navigation.following;
+  useEffect(() => {
+    if (!navRoute) {
+      routeFitRef.current = null;
+      return;
+    }
+    if (!mapInstance || routeFitRef.current === fitKey || following || navRoute.profile !== navProfile) return;
+    routeFitRef.current = fitKey;
+    const compact = containerRef.current.clientWidth < COMPACT_WIDTH;
+    const first = navRoute.coordinates[0];
+    const bounds = navRoute.coordinates.reduce((box, point) => box.extend(point), new LngLatBounds(first, first));
+    mapInstance.fitBounds(bounds, { padding: compact ? ROUTE_PADDING.compact : ROUTE_PADDING.wide, maxZoom: FOCUS_ZOOM + 1, duration: 700 });
+  }, [mapInstance, navRoute, fitKey, navProfile, following]);
+
+  // "Start": keep the person in view as they move, until they drag the map.
+  useEffect(() => {
+    if (!mapInstance || liveLng === null || !cameraFollowsRef.current) return;
+    mapInstance.easeTo({ center: [liveLng, liveLat], zoom: Math.max(mapInstance.getZoom(), 16), duration: 700 });
+  }, [mapInstance, liveLng, liveLat]);
+
+  // Save the road data on this device while there is a connection, so directions work
+  // later with none. Cheap when it is already saved.
+  useEffect(() => {
+    if (mapInstance) getRoutingClient().warm().catch(() => {});
+  }, [mapInstance]);
+
   // "850 m SW" half way along the line, and a marker for a saved location (the
   // blue dot only ever shows a position the browser gave us).
   const midLng = guidanceFrom && guidanceTarget ? (guidanceFrom.lng + guidanceTarget.lng) / 2 : null;
@@ -301,16 +378,17 @@ export default function MapView() {
     return () => marker.remove();
   }, [mapInstance, fromLng, fromLat, guidanceSaved]);
 
-  // A ring on the recommended shelter's marker.
+  // A ring on the shelter the directions (or the straight line) lead to.
+  const ringId = navigation.route ? (navigation.destination?._id ?? null) : guidanceTargetId;
   useEffect(() => {
     for (const [key, { marker }] of markersRef.current) {
-      marker.getElement().classList.toggle("is-nearest", guidanceTargetId !== null && key === `shelter:${guidanceTargetId}`);
+      marker.getElement().classList.toggle("is-nearest", ringId !== null && key === `shelter:${ringId}`);
     }
-  }, [mapInstance, markerItems, guidanceTargetId]);
+  }, [mapInstance, markerItems, ringId]);
 
   // Show the person and the shelter together: once per press of the button, not
   // on every 30-second refresh.
-  const requestId = nearest.request?.id ?? null;
+  const requestId = navigation.request?.id ?? null;
   useEffect(() => {
     if (!mapInstance || !guidance) {
       if (!guidance) guidanceFitRef.current = null;
@@ -369,13 +447,22 @@ export default function MapView() {
     });
   }, [mapInstance, dataReady, focusRaw, focusKind, focusId, incidentsLoaded, sheltersLoaded, activeIncidents, shelterList, showToast]);
 
-  // /map?nearest=1 (from the Shelters page) asks for the nearest shelter once the data is in.
-  const { find: findNearest } = nearest;
+  // /map?nearest=1 (from the Shelters page) asks for directions to the nearest shelter once
+  // the data is in; /map?navigate=shelter:<id> (the Navigate button on a shelter card) to that one.
+  const { startNearest, startTo } = navigation;
   useEffect(() => {
     if (!autoNearest || autoNearestRef.current || !mapInstance || !dataReady) return;
     autoNearestRef.current = true;
-    findNearest();
-  }, [autoNearest, mapInstance, dataReady, findNearest]);
+    startNearest();
+  }, [autoNearest, mapInstance, dataReady, startNearest]);
+
+  useEffect(() => {
+    if (!navigateRaw || autoNavigateRef.current === navigateRaw || !mapInstance || !dataReady) return;
+    autoNavigateRef.current = navigateRaw;
+    const shelter = shelterList.find((record) => record._id === navigateId);
+    if (shelter) startTo(shelter);
+    else if (sheltersLoaded) showToast("That shelter isn't on the map any more", { kind: "error" });
+  }, [navigateRaw, navigateId, mapInstance, dataReady, shelterList, sheltersLoaded, startTo, showToast]);
 
   // ---- controls ----
 
@@ -432,8 +519,21 @@ export default function MapView() {
       return;
     }
     setSelected(null);
-    findNearest();
-  }, [shelters.data, findNearest, showToast]);
+    startNearest();
+  }, [shelters.data, startNearest, showToast]);
+
+  // "Start" in the directions panel: follow the person, with the camera on them.
+  const handleStartFollowing = useCallback(() => {
+    cameraFollowsRef.current = true;
+    setCameraPaused(false);
+    navigation.startFollowing();
+  }, [navigation]);
+
+  const recentre = useCallback(() => {
+    cameraFollowsRef.current = true;
+    setCameraPaused(false);
+    if (mapInstance && liveLng !== null) mapInstance.easeTo({ center: [liveLng, liveLat], zoom: Math.max(mapInstance.getZoom(), 16), duration: 500 });
+  }, [mapInstance, liveLng, liveLat]);
 
   const retry = useCallback(
     (resources) => () => {
@@ -492,19 +592,17 @@ export default function MapView() {
             empty={empty}
             savedAt={oldestSavedAt(incidents, shelters)}
           >
-            <NearestPanel
-              request={nearest.request}
-              guidance={guidance}
-              incidentsKnown={nearest.incidentsKnown}
-              onClear={nearest.clear}
-              onRetry={nearest.find}
-            >
-              {guidance && (
-                <button type="button" onClick={() => setSelected({ kind: "shelter", id: guidance.shelter._id })} className={nearestPanelButtonClass}>
-                  Shelter details
-                </button>
-              )}
-            </NearestPanel>
+            <NavigationPanel
+              nav={{ ...navigation, startFollowing: handleStartFollowing }}
+              destinationWarning={navigation.destination ? warnings.get(navigation.destination._id) : undefined}
+              incidentsKnown={incidents.data !== null}
+              onShowShelter={(id) => setSelected({ kind: "shelter", id })}
+            />
+            {navigation.following && cameraPaused && (
+              <button type="button" onClick={recentre} className={`pointer-events-auto ${nearestPanelButtonClass} min-h-10 px-4 text-sm`}>
+                Re-centre on me
+              </button>
+            )}
           </TopNotices>
           {noData && (
             <LoadFailed message={incidents.error ?? shelters.error} onRetry={retry([incidents, shelters])} />
@@ -516,7 +614,7 @@ export default function MapView() {
             onLocate={handleLocate}
             locating={locating}
             onNearest={handleNearest}
-            findingNearest={nearest.busy}
+            findingNearest={navigation.busy}
             nearestEnabled={Boolean(shelters.data)}
           />
         </>
@@ -529,6 +627,14 @@ export default function MapView() {
             record={selectedRecord}
             warning={selected.kind === "shelter" ? warnings.get(selected.id) : undefined}
             now={popupSource.fetchedAt ?? 0}
+            onNavigate={
+              selected.kind === "shelter"
+                ? () => {
+                    setSelected(null);
+                    navigation.startTo(selectedRecord);
+                  }
+                : undefined
+            }
             onClose={closeSelected}
           />,
           popupEl,
