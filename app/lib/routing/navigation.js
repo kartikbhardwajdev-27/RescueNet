@@ -14,6 +14,15 @@ export const LIMITS_NOTE = "Closures are known only from incidents reported on R
 
 export const PROFILE_LABEL = { walk: "On foot", drive: "By car" };
 
+// Metres from the start of the route to the start of each step, then to the end: one more
+// entry than there are steps (the last step, "arrive", has no length). Used to say how far
+// it is to the next turn.
+export function stepStarts(steps) {
+  const starts = [0];
+  for (const step of steps) starts.push(starts[starts.length - 1] + step.distanceM);
+  return starts;
+}
+
 // Open shelters with at least one free space, as the router wants them: [{ id, lat, lon }].
 export function routingCandidates(shelters) {
   return (shelters ?? []).filter(shelterHasRoom).map((shelter) => ({ id: shelter._id, lat: shelter.location.coordinates[1], lon: shelter.location.coordinates[0] }));

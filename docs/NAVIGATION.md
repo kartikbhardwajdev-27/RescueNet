@@ -38,12 +38,31 @@ On the **Map** page:
 - **Navigate to nearest shelter**: finds your position, then the **3 nearest open shelters with a free space** (straight line), routes to each, and picks the cheapest by road. A full or closed shelter is never a candidate.
 - **Navigate** on a shelter's **popup** (tap its marker) and on every shelter **card** on the Shelters page (it opens `/map?navigate=shelter:<id>`). This goes to that shelter even if it is full or closed, and says so.
 - The route is drawn in blue, with the amber rings of the danger zones around active floods, fires and earthquakes.
-- A panel shows the **distance**, the **estimated time** (always marked "Estimate … No live traffic"), a **Walk / Drive** switch, any warnings, and **Directions**: the turn-by-turn list built from street names, turn directions and distances.
-- **Start** follows your position: it shows the next instruction first, highlights the current step in the list, keeps the map on you (drag the map to stop it; **Re-centre on me** brings it back), and **recalculates** when you are **more than 60 m off the route**. It needs two off-route fixes in a row and waits 8 seconds between recalculations, so one noisy GPS reading does not send you on a detour. Within 25 m of the end it says you have arrived.
-- **Warnings** (amber): the route passes an active incident (any type, within 150 m), the route still crosses a danger zone ("No route that avoids reported danger was found", with "call 112"), or the shelter is full or closed.
+
+While a route is on screen the map is laid out like a navigation app, built for a 360 x 740 phone:
+
+- **An instruction card** flush with the top of the map: an icon, the next instruction (two lines at most) and how far away it is.
+- **A slim strip** flush with the bottom: the destination on one line (an ellipsis if it is long), the **distance**, the **estimated time** (always marked "Estimate · … · no live traffic"), the **Walk / Drive** switch, **Start** and **Stop**, an amber count when there are warnings, and a **chevron**.
+- **The map in between.** The filter chips, the legend and "Navigate to nearest shelter" are hidden while a route is on screen and come back on **Stop**. One round button on the right edge above the strip is **My location**, and it becomes **Re-centre on me** when "Start" is following you and you have dragged the map away.
+- **Collapsed by default.** The chevron opens the **directions** as a sheet that takes at most 45% of the screen and scrolls inside itself: the warnings first, then the turn-by-turn list built from street names, turn directions and distances. Escape closes it.
+- **Start** follows your position: the card shows the next turn, the current step is highlighted in the list, the map keeps you in view (drag it to stop; the round button brings it back), and it **recalculates** when you are **more than 60 m off the route**. It needs two off-route fixes in a row and waits 8 seconds between recalculations, so one noisy GPS reading does not send you on a detour. "You are off the route" is a small banner under the card, and goes away when the new route arrives. Within 25 m of the end it says you have arrived.
+- **Warnings** (amber): the route passes an active incident (any type, within 150 m), the route still crosses a danger zone ("No route avoids reported danger. Tap for details" under the card, the full text in the sheet, with "call 112"), or the shelter is full or closed.
 - **Fallbacks.** If the road file is missing or damaged, or you are outside the mapped area, or no road route exists, the panel says why and shows the existing **straight-line distance and direction** with its dashed line ("Straight-line distance, not a road route").
 - The **Nearest Shelter** tile on Home and "Navigate on the map" on the Shelters page open the map and start the same directions.
-- "© OpenStreetMap contributors" is shown on the map and on the About page.
+- "© OpenStreetMap contributors" is shown on the map and on the About page. During navigation it moves up to sit just above the strip (on a laptop screen the strip is a card at the left, so it stays at the bottom right).
+
+The layout keeps the app's tab bar and the red SOS button reachable. The bars use the phone's safe-area insets (`--safe-area-inset-*`, which Capacitor injects, or `env(safe-area-inset-*)`) at the left, right and bottom. Today those are 0, because the app does not use `viewport-fit=cover` and Android pads the WebView itself.
+
+### Checking the phone layout
+
+`docs/screenshots/step-27/` has the screenshots and the measurements for 360 x 740, 390 x 844 and 412 x 915 (what the strip and card measure, how much map is left, that nothing overlaps or is clipped). To measure it again:
+
+```sh
+npm run build && npm run start:lan     # the production server, with the demo data (npm run demo:seed)
+npm run check:phone                    # http://localhost:3000; or: npm run check:phone -- http://localhost:3110 --shots ~/Desktop/shots
+```
+
+It opens headless Chrome (Google Chrome at the usual Mac path, or `CHROME_PATH`), fakes a position in Sector 17, and runs 123 checks with `getBoundingClientRect()`. It is a real browser engine at phone sizes, not a phone.
 
 ## How it works, with no internet
 

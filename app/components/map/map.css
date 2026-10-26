@@ -236,3 +236,41 @@
     display: none;
   }
 }
+
+/* ---- safe areas and the navigation strip ------------------------------- */
+
+/* The phone's own bars. Capacitor's SystemBars plugin (the Android app) injects
+   --safe-area-inset-* on <html>; a browser with viewport-fit=cover gives env(). With
+   neither, they are 0. The app does not use viewport-fit=cover today (Android pads the
+   WebView itself), so these only change anything if that is ever turned on. Only the left and
+   right edges (a display cutout in landscape) and the bottom of the strip matter to the
+   map's overlays: the app's own top bar and tab bar sit between them and the top and bottom
+   of the screen. */
+.rn-map {
+  --sai-t: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+  --sai-r: var(--safe-area-inset-right, env(safe-area-inset-right, 0px));
+  --sai-b: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+  --sai-l: var(--safe-area-inset-left, env(safe-area-inset-left, 0px));
+}
+.rn-safe-x {
+  padding-left: max(0.75rem, var(--sai-l));
+  padding-right: max(0.75rem, var(--sai-r));
+}
+.rn-safe-right {
+  margin-right: max(0.75rem, var(--sai-r));
+}
+.rn-safe-bottom {
+  padding-bottom: max(0.375rem, var(--sai-b));
+}
+
+/* While a route is on screen the strip covers the bottom of the map, so the attribution
+   ("© OpenStreetMap contributors") moves to the left and sits just above the strip, where
+   the strip's height is reported in --rn-nav-bottom (NavigationBottom). From md up the strip is
+   a card at the left of the map, so the attribution stays where it always is, bottom right. */
+@media (max-width: 767px) {
+  .rn-map.is-navigating .maplibregl-ctrl-bottom-right {
+    right: auto;
+    left: 0;
+    bottom: var(--rn-nav-bottom, 0px);
+  }
+}

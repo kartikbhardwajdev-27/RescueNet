@@ -555,25 +555,31 @@ dots, **More tools**, **Sensors**, **Location**. Choose **Other** and type
 
 - [ ] **15.1 Navigate to nearest shelter.**
   1. Set the faked location to Sector 17. Press **Navigate to nearest shelter**.
-  - **Expected:** a blue route on the map; a panel "Nearest shelter by road" with the
-    shelter's name (from Sector 17 it is **Mohali Phase 7** with the demo data; the Sector
-    22 camp is full and Kharar is closed, so neither is chosen), a distance such as
-    "8.7 km", a time such as "≈ 1 h 49 min" **with the words "Estimate" and "No live
-    traffic"**, **Walk** selected, and the text "Shortest by road of the 3 nearest open
-    shelters". "© OpenStreetMap contributors" is visible at the bottom right of the map.
+  - **Expected:** a blue route on the map; at the top a card with the next instruction
+    ("Head west along the footpath", "110 m"); at the bottom a strip with the shelter's name
+    (from Sector 17 it is **Mohali Phase 7** with the demo data; the Sector 22 camp is full
+    and Kharar is closed, so neither is chosen), a distance such as "8.7 km", a time such as
+    "≈ 1 h 49 min" **with the words "Estimate" and "no live traffic"** under it, **Walk**
+    selected, **Start** and **Stop**. The filter chips, the legend and "Navigate to nearest
+    shelter" are gone while the route is up. The round button on the right edge is **My
+    location**. "© OpenStreetMap contributors" is visible just above the strip (bottom right
+    on a laptop screen).
   - **Automated check: passed** (headless Chrome, faked Sector 17: panel, route, estimate
     wording, the distance matched an independent run of the engine, phone-size layout).
     **Not verified at all:** that the route follows the real roads and looks right to you.
 
 - [ ] **15.2 Walk and Drive.**
-  1. Press **Drive**, then **Walk**.
+  1. Press the **car** icon, then the **footprints** icon in the strip.
   - **Expected:** by car the time drops sharply (about 16 min for 9.8 km) and the distance
     may change; back on foot it returns. The choice is remembered on this browser.
   - **Automated check: passed.**
 
 - [ ] **15.3 The list of directions.**
-  1. Press **Directions**.
-  - **Expected:** numbered steps with a distance each: "Head west along the footpath",
+  1. Press the **chevron** at the right of the strip's top line. Scroll the list. Press the
+     chevron again (or Escape).
+  - **Expected:** the list is **closed until you tap**. Open, it is a sheet that covers at
+    most 45% of the screen and scrolls by itself (the page does not move); the warnings come
+    first, then steps with a distance each: "Head west along the footpath",
     "Turn left onto ...", "Bear right ...", "Enter the roundabout", "Exit the roundabout
     onto Jan Marg", ending "You have arrived at DEMO: Mohali Phase 7 School Shelter".
     Many roads say "the road" or "the footpath": only 8 percent of roads here have a name
@@ -593,13 +599,14 @@ dots, **More tools**, **Sensors**, **Location**. Choose **Other** and type
 
 - [ ] **15.5 Danger zones and warnings.**
   1. With the demo scene loaded, navigate from Sector 17 to **Mohali Phase 7**. Look for
-     the dashed amber rings on the map.
+     the dashed amber rings on the map. (A "1" next to the chevron is the warning count.)
   2. Log in as the organization and report (or ask a citizen to report) a **flood** with
      severity **critical** at a shelter's address, then navigate to that shelter.
      Afterwards mark that incident **resolved**.
   - **Expected:** step 1: the route is **longer than the direct one** (8.7 km, where 7.9 km
-    would cross the flood area) because it steers round the rings. Step 2: a warning
-    **"No route that avoids reported danger was found"** with "call 112" (the route is
+    would cross the flood area) because it steers round the rings. Step 2: a small amber
+    banner under the instruction card, **"No route avoids reported danger. Tap for
+    details"**; tapping it opens the list with the full warning and "call 112" (the route is
     still shown, never blocked); a **medical** incident beside the route instead gives
     "Passes an active incident". Once resolved, the warning is gone.
   - **Automated check: passed** (with incidents injected in the browser, not saved: the
@@ -624,19 +631,34 @@ dots, **More tools**, **Sensors**, **Location**. Choose **Other** and type
   - **Automated check: passed.**
 
 - [ ] **15.8 Start: follow a moving person.**
-  1. Start a route from Sector 17 on foot. Press **Start**.
+  1. Start a route from Sector 17 on foot. Press **Start** (the strip then shows one wide
+     **Stop**).
   2. In Sensors, change the location a little at a time along the route (for example copy
      coordinates a few hundred metres further along the blue line).
   3. Then jump to a place about 300 m **beside** the route, and wait a few seconds.
   4. Then set the location to the shelter.
-  - **Expected:** a "next instruction" box at the top of the panel ("Next in 150 m"); the
-    current step highlighted in **Directions**; the map keeps you in view (drag the map and
-    a **Re-centre on me** button appears). Step 3: "You are off the route", then, on the
-    second reading, a **new route from where you are** (the steps change). Step 4: "You
-    have arrived at ...".
+  - **Expected:** the instruction card shows the next turn and the distance to it ("Turn
+    right onto the road", "90 m"); with the list open the current step is highlighted; the
+    map keeps you in view (drag the map and the round button's name becomes **Re-centre on
+    me**, and pressing it brings you back). Step 3: a small amber banner under the card, "You
+    are off the route", then, on the second reading, a **new route from where you are** (the
+    steps change) and the banner is gone. Step 4: the card says "You have arrived at ...".
   - **Automated check: passed** with a *faked* position moving along the route (the step
     highlight moved through 6 different steps; arrival; off route after a second reading;
     new route; progress shown at once). **Not verified at all:** real GPS movement (see 16.4).
+
+- [ ] **15.8b The phone layout.** *(on the laptop, then on the phone in 16.1)*
+  1. In Chrome DevTools press the **device toolbar** icon (Cmd+Shift+M), pick **Responsive**
+     and type **360 x 740**. Reload the map, start a route.
+  2. Open the list, close it, press **Start**, press **Stop**.
+  - **Expected:** the card at the top and the strip at the bottom together take **less than a
+    third** of the screen; the map stays visible between them; **no two buttons overlap**;
+    nothing is cut off (the destination name ends in "…" if it is long, and its full name
+    shows when you hover it); the red SOS button and the tabs below stay tappable; after
+    **Stop** the filter chips, the legend and "Navigate to nearest shelter" are back.
+  - **Automated check: passed** at 360 x 740, 390 x 844 and 412 x 915 (`npm run check:phone`,
+    123 checks, screenshots in `docs/screenshots/step-27/`). **Not verified at all:** a real
+    phone (edge-to-edge screens, the keyboard, how it feels under a thumb).
 
 - [ ] **15.9 No internet.**
   1. Open the map once (this saves the roads on the device). Turn the Mac's **WiFi off**.
@@ -669,9 +691,9 @@ Android's location dialog and GPS. That is what you test here. Rebuild first wit
 - [ ] **16.1 Directions on the phone, laptop on.**
   1. Open the app, **Map**, allow location. Press **Navigate to nearest shelter**, then
      **Start**.
-  - **Expected:** the same panel as on the laptop, with a route and an estimate. Tell me if
-    the panel overlaps the buttons or the system bar, or if the first press takes long
-    (the first route reads the road file).
+  - **Expected:** the same card and strip as in 15.8b, with a route and an estimate. Tell me
+    if anything overlaps the buttons, the phone's status bar or its gesture bar, if any text
+    is cut off, or if the first press takes long (the first route reads the road file).
   - **Stand-in: passed** (the exported UI in a 390 px wide window). **Not verified at
     all:** Android.
 

@@ -11,15 +11,17 @@ import { useToast } from "@/components/SosProvider";
 import { oldestSavedAt } from "@/components/SavedDataBanner";
 import usePolledResource from "@/components/usePolledResource";
 import useUserLocation from "@/components/useUserLocation";
+import NavigationBottom from "@/components/navigation/NavigationBottom";
 import NavigationPanel from "@/components/navigation/NavigationPanel";
+import NavigationTop from "@/components/navigation/NavigationTop";
 import { ensureRouteLayers, showRoute, showZones } from "@/components/navigation/routeLayers";
 import useNavigation from "@/components/navigation/useNavigation";
 import { fetchIncidents, fetchShelters } from "@/lib/api";
 import { describeLocationError, formatDistance, getCurrentLocation } from "@/lib/geo";
 import { parseFocus, parseNavigate } from "@/lib/mapFocus";
+import { limitPadding, safeFitBounds } from "@/lib/mapFraming";
 import { shelterWarnings } from "@/lib/nearest";
 import { getRoutingClient } from "@/lib/routing/client";
-import { nearestPanelButtonClass } from "@/components/shelters/NearestPanel";
 import { zonesFromIncidents } from "@/lib/routing/zones";
 import { BottomControls, LoadFailed, MapUnavailable, TopNotices } from "./MapOverlays";
 import PopupCard from "./PopupCard";
@@ -56,11 +58,11 @@ const GUIDANCE_PADDING = {
   wide: { top: 190, bottom: 130, left: 100, right: 100 },
 };
 
-// Fitting a whole road route in view: the directions panel is taller than the
-// straight-line one, so there is more room kept clear at the top.
+// Fitting a whole road route in view: the top and bottom are the real heights of the instruction
+// card and the strip (measured when it is framed, see framingPadding); these are the sides.
 const ROUTE_PADDING = {
-  compact: { top: 300, bottom: 230, left: 40, right: 40 },
-  wide: { top: 230, bottom: 130, left: 100, right: 100 },
+  compact: { top: 100, bottom: 130, left: 40, right: 40 },
+  wide: { top: 100, bottom: 130, left: 100, right: 100 },
 };
 
 const EMPTY_LINE = { type: "FeatureCollection", features: [] };
@@ -110,6 +112,8 @@ export default function MapView() {
   const routeFitRef = useRef(null); // the navigation request the camera already framed
   const cameraFollowsRef = useRef(true); // "Start" keeps the person in view until the map is dragged
   const [cameraPaused, setCameraPaused] = useState(false);
+  // The directions sheet is open for this request id (so it starts closed for every new request).
+  const [sheetFor, setSheetFor] = useState(null);
 
   // ---- data ----
 
@@ -144,12 +148,31 @@ export default function MapView() {
   const navigation = useNavigation({ device, shelters: shelters.data, incidents: incidents.data });
   // The straight-line guidance, only when road directions are not possible.
   const guidance = navigation.fallbackGuidance;
+  // A road route is on screen: the instruction card and the bottom strip replace the filters,
+  // the legend and the "Navigate to nearest shelter" button.
+  const routeOn = navigation.route !== null;
+  const sheetOpen = routeOn && sheetFor !== null && sheetFor === navigation.request?.id;
+  const toggleSheet = useCallback(() => setSheetFor((current) => (current !== null && current === navigation.request?.id ? null : (navigation.request?.id ?? null))), [navigation.request?.id]);
   const warnings = useMemo(() => shelterWarnings(shelterList, incidents.data ?? []), [shelterList, incidents.data]);
   const guidanceFrom = guidance?.from ?? null;
   const guidanceTarget = guidance?.target ?? null;
   const guidanceTargetId = guidance?.shelter._id ?? null;
   const guidanceSaved = guidance?.source === "saved";
   const guidanceLabel = guidance ? `${formatDistance(guidance.distanceKm)}${guidance.direction ? ` ${guidance.direction}` : ""}` : null;
+
+  // Room to keep clear of the panels when framing something. While a route is on screen the top and
+  // bottom are the real heights of the instruction card and the strip (with room for the banner and
+  // the round button); always capped, because a small phone has little map to spare.
+  const framingPadding = useCallback((base) => {
+    const card = containerRef.current.closest(".rn-map") ?? containerRef.current;
+    const instruction = card.querySelector("[data-nav=instruction]")?.offsetHeight;
+    const strip = card.querySelector("[data-nav=strip]")?.offsetHeight;
+    return limitPadding(
+      { top: instruction !== undefined ? instruction + 44 : base.top, bottom: strip !== undefined ? strip + 70 : base.bottom, left: base.left, right: base.right },
+      card.clientWidth,
+      card.clientHeight,
+    );
+  }, []);
 
   // ---- the map ----
 
@@ -339,8 +362,8 @@ export default function MapView() {
     const compact = containerRef.current.clientWidth < COMPACT_WIDTH;
     const first = navRoute.coordinates[0];
     const bounds = navRoute.coordinates.reduce((box, point) => box.extend(point), new LngLatBounds(first, first));
-    mapInstance.fitBounds(bounds, { padding: compact ? ROUTE_PADDING.compact : ROUTE_PADDING.wide, maxZoom: FOCUS_ZOOM + 1, duration: 700 });
-  }, [mapInstance, navRoute, fitKey, navProfile, following]);
+    safeFitBounds(mapInstance, bounds, { padding: framingPadding(compact ? ROUTE_PADDING.compact : ROUTE_PADDING.wide), maxZoom: FOCUS_ZOOM + 1, duration: 700 });
+  }, [mapInstance, navRoute, fitKey, navProfile, following, framingPadding]);
 
   // "Start": keep the person in view as they move, until they drag the map.
   useEffect(() => {
@@ -401,12 +424,12 @@ export default function MapView() {
       guidance.target.lng,
       guidance.target.lat,
     ]);
-    mapInstance.fitBounds(bounds, {
-      padding: compact ? GUIDANCE_PADDING.compact : GUIDANCE_PADDING.wide,
+    safeFitBounds(mapInstance, bounds, {
+      padding: framingPadding(compact ? GUIDANCE_PADDING.compact : GUIDANCE_PADDING.wide),
       maxZoom: FOCUS_ZOOM,
       duration: 700,
     });
-  }, [mapInstance, guidance, requestId]);
+  }, [mapInstance, guidance, requestId, framingPadding]);
 
   // ---- camera: a deep link, else fit the data ----
 
@@ -440,12 +463,12 @@ export default function MapView() {
     const points = [...activeIncidents, ...shelterList].map(pointOf);
     if (points.length === 0 || userMovedRef.current) return;
     const bounds = points.reduce((box, point) => box.extend(point), new LngLatBounds(points[0], points[0]));
-    mapInstance.fitBounds(bounds, {
-      padding: compact ? FIT_PADDING.compact : FIT_PADDING.wide,
+    safeFitBounds(mapInstance, bounds, {
+      padding: framingPadding(compact ? FIT_PADDING.compact : FIT_PADDING.wide),
       maxZoom: FIT_MAX_ZOOM,
       duration: 700,
     });
-  }, [mapInstance, dataReady, focusRaw, focusKind, focusId, incidentsLoaded, sheltersLoaded, activeIncidents, shelterList, showToast]);
+  }, [mapInstance, dataReady, focusRaw, focusKind, focusId, incidentsLoaded, sheltersLoaded, activeIncidents, shelterList, showToast, framingPadding]);
 
   // /map?nearest=1 (from the Shelters page) asks for directions to the nearest shelter once
   // the data is in; /map?navigate=shelter:<id> (the Navigate button on a shelter card) to that one.
@@ -535,6 +558,14 @@ export default function MapView() {
     if (mapInstance && liveLng !== null) mapInstance.easeTo({ center: [liveLng, liveLat], zoom: Math.max(mapInstance.getZoom(), 16), duration: 500 });
   }, [mapInstance, liveLng, liveLat]);
 
+  // The one round button: "My location", which becomes "Re-centre on me" while "Start" is following the
+  // person and they have dragged the map away.
+  const handleRoundLocate = useCallback(() => {
+    if (navigation.following && liveLng !== null) recentre();
+    else handleLocate();
+  }, [navigation.following, liveLng, recentre, handleLocate]);
+  const locateLabel = navigation.following && cameraPaused ? "Re-centre on me" : "My location";
+
   const retry = useCallback(
     (resources) => () => {
       for (const resource of resources) resource.refresh();
@@ -565,6 +596,7 @@ export default function MapView() {
   };
 
   const popupSource = selected?.kind === "incident" ? incidents : shelters;
+  const nav = { ...navigation, startFollowing: handleStartFollowing };
 
   return (
     <Card padded={false} lift={false} className={`rn-map relative overflow-hidden ${MAP_CARD_SIZE}`}>
@@ -591,32 +623,40 @@ export default function MapView() {
             outsideCoverage={outsideCoverage}
             empty={empty}
             savedAt={oldestSavedAt(incidents, shelters)}
+            hero={routeOn ? <NavigationTop nav={nav} onOpenDirections={() => !sheetOpen && toggleSheet()} /> : null}
           >
-            <NavigationPanel
-              nav={{ ...navigation, startFollowing: handleStartFollowing }}
-              destinationWarning={navigation.destination ? warnings.get(navigation.destination._id) : undefined}
-              incidentsKnown={incidents.data !== null}
-              onShowShelter={(id) => setSelected({ kind: "shelter", id })}
-            />
-            {navigation.following && cameraPaused && (
-              <button type="button" onClick={recentre} className={`pointer-events-auto ${nearestPanelButtonClass} min-h-10 px-4 text-sm`}>
-                Re-centre on me
-              </button>
-            )}
+            <NavigationPanel nav={nav} incidentsKnown={incidents.data !== null} onShowShelter={(id) => setSelected({ kind: "shelter", id })} />
           </TopNotices>
           {noData && (
             <LoadFailed message={incidents.error ?? shelters.error} onRetry={retry([incidents, shelters])} />
           )}
-          <BottomControls
-            filters={filters}
-            counts={counts}
-            onToggle={toggleFilter}
-            onLocate={handleLocate}
-            locating={locating}
-            onNearest={handleNearest}
-            findingNearest={navigation.busy}
-            nearestEnabled={Boolean(shelters.data)}
-          />
+          {routeOn ? (
+            <NavigationBottom
+              nav={nav}
+              open={sheetOpen}
+              onToggle={toggleSheet}
+              onLocate={handleRoundLocate}
+              locateLabel={locateLabel}
+              locating={locating}
+              destinationLabel={navigation.destination?.name ?? "Shelter"}
+              destinationWarning={navigation.destination ? warnings.get(navigation.destination._id) : undefined}
+              incidentsKnown={incidents.data !== null}
+              onShowDetails={navigation.destination ? () => { setSheetFor(null); setSelected({ kind: "shelter", id: navigation.destination._id }); } : undefined}
+              detailsLabel="Shelter details"
+            />
+          ) : (
+            <BottomControls
+              filters={filters}
+              counts={counts}
+              onToggle={toggleFilter}
+              onLocate={handleRoundLocate}
+              locating={locating}
+              locateLabel={locateLabel}
+              onNearest={handleNearest}
+              findingNearest={navigation.busy}
+              nearestEnabled={Boolean(shelters.data)}
+            />
+          )}
         </>
       )}
 

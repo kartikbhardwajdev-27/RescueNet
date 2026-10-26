@@ -26,7 +26,7 @@ function FilterChips({ filters, counts, onToggle }) {
             type="button"
             aria-pressed={selected}
             onClick={() => onToggle(key)}
-            className={`flex min-h-10 items-center gap-2 rounded-full px-4 py-2 text-sm font-bold transition-all duration-150 motion-safe:active:scale-95 ${
+            className={`flex min-h-10 items-center gap-2 rounded-full px-3 py-2 text-sm font-bold md:px-4 transition-all duration-150 motion-safe:active:scale-95 ${
               selected ? "bg-brand-gradient text-on-brand shadow-brand" : "border border-line-strong bg-white/5 text-ink-muted hover:bg-white/10 hover:text-ink"
             }`}
           >
@@ -60,20 +60,19 @@ function Legend() {
   );
 }
 
-function LocateButton({ onClick, locating }) {
+// The one round "My location" button, used with and without directions. While "Start" is following
+// the person and they have dragged the map away, the same button re-centres on them.
+export function RoundLocateButton({ onClick, locating, label = "My location" }) {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={locating}
-      className={`flex h-12 shrink-0 items-center gap-2 rounded-full px-5 text-sm font-bold text-ink transition-all duration-150 hover:bg-white/10 disabled:opacity-80 motion-safe:active:scale-95 ${GLASS}`}
+      aria-label={label}
+      title={label}
+      className={`flex size-12 shrink-0 items-center justify-center rounded-full text-brand-to transition-all duration-150 hover:bg-white/10 disabled:opacity-80 motion-safe:active:scale-95 ${GLASS}`}
     >
-      {locating ? (
-        <LoaderCircle className="size-5 motion-safe:animate-spin" aria-hidden="true" />
-      ) : (
-        <LocateFixed className="size-5 text-brand-to" aria-hidden="true" />
-      )}
-      {locating ? "Locating…" : "My location"}
+      {locating ? <LoaderCircle className="size-5 motion-safe:animate-spin" aria-hidden="true" /> : <LocateFixed className="size-5" aria-hidden="true" />}
     </button>
   );
 }
@@ -84,30 +83,34 @@ function NearestButton({ onClick, busy, disabled }) {
       type="button"
       onClick={onClick}
       disabled={busy || disabled}
-      className={`flex h-12 shrink-0 items-center gap-2 rounded-full px-5 text-sm font-bold text-ink transition-all duration-150 hover:bg-white/10 disabled:opacity-70 motion-safe:active:scale-95 ${GLASS}`}
+      className={`flex h-12 w-full min-w-0 items-center justify-center gap-2 rounded-full px-3 text-sm font-bold md:w-auto md:px-4 text-ink transition-all duration-150 hover:bg-white/10 disabled:opacity-70 motion-safe:active:scale-95 ${GLASS}`}
     >
       {busy ? (
-        <LoaderCircle className="size-5 motion-safe:animate-spin" aria-hidden="true" />
+        <LoaderCircle className="size-5 shrink-0 motion-safe:animate-spin" aria-hidden="true" />
       ) : (
-        <Navigation className="size-5 text-safe" aria-hidden="true" />
+        <Navigation className="size-5 shrink-0 text-safe" aria-hidden="true" />
       )}
-      {busy ? "Finding…" : "Navigate to nearest shelter"}
+      <span className="min-w-0 leading-tight">{busy ? "Finding…" : "Navigate to nearest shelter"}</span>
     </button>
   );
 }
 
-// Bottom edge: legend + filters, and the two location buttons above them on a
-// phone (beside them from md up). `bottom-9` keeps clear of the attribution.
-export function BottomControls({ filters, counts, onToggle, onLocate, locating, onNearest, findingNearest, nearestEnabled }) {
+// Bottom edge when no route is on screen. On a phone it is a column: a row with "Navigate to
+// nearest shelter" and the round "My location" button, and under it one card with the filters and the
+// legend. From md up the card is on the left and the buttons on the right. `bottom-9` keeps clear of
+// the attribution. While a route is on screen none of this is shown (see NavigationBottom).
+export function BottomControls({ filters, counts, onToggle, onLocate, locating, locateLabel, onNearest, findingNearest, nearestEnabled }) {
   return (
-    <div className="pointer-events-none absolute inset-x-3 bottom-9 z-10 flex flex-col-reverse items-end gap-2 md:inset-x-4 md:flex-row md:justify-between">
+    <div className="pointer-events-none absolute bottom-9 left-[max(0.75rem,var(--sai-l))] right-[max(0.75rem,var(--sai-r))] z-10 flex flex-col gap-2 md:left-[max(1rem,var(--sai-l))] md:right-[max(1rem,var(--sai-r))] md:flex-row-reverse md:items-end md:justify-between">
+      <div className="pointer-events-auto flex items-center gap-2 md:flex-row-reverse">
+        <div className="flex min-w-0 flex-1 md:flex-none">
+          <NearestButton onClick={onNearest} busy={findingNearest} disabled={!nearestEnabled} />
+        </div>
+        <RoundLocateButton onClick={onLocate} locating={locating} label={locateLabel} />
+      </div>
       <div className={`pointer-events-auto flex w-full flex-col gap-2.5 rounded-2xl p-2.5 md:w-auto md:max-w-md ${GLASS}`}>
         <FilterChips filters={filters} counts={counts} onToggle={onToggle} />
         <Legend />
-      </div>
-      <div className="pointer-events-auto flex flex-col items-end gap-2 md:flex-row-reverse md:items-center">
-        <LocateButton onClick={onLocate} locating={locating} />
-        <NearestButton onClick={onNearest} busy={findingNearest} disabled={!nearestEnabled} />
       </div>
     </div>
   );
@@ -138,10 +141,21 @@ function Notice({ icon: Icon, tone = "info", children, action }) {
 //   outsideCoverage  the view is outside the offline tiles
 //   empty            loaded fine, but nothing to plot
 //   savedAt          (Android app) the markers are a copy saved on the phone, from this time (ms)
-export function TopNotices({ loading, problem, baseMapMissing, outsideCoverage, empty, savedAt = null, children }) {
+//   hero             the instruction card shown while a route is on screen. It is flush with the top
+//                    edge of the map, and the notices (and `children`) stack under it
+// On a phone the notices are capped so that they can never reach the buttons at the bottom.
+export function TopNotices({ loading, problem, baseMapMissing, outsideCoverage, empty, savedAt = null, hero = null, children }) {
+  const flush = hero !== null;
   return (
-    // pr-12 keeps the panels clear of the zoom buttons at the top right on a phone.
-    <div className="pointer-events-none absolute inset-x-3 top-3 z-10 flex flex-col items-center gap-2 pr-12 md:inset-x-16 md:pr-0">
+    <div
+      className={`pointer-events-none absolute z-10 flex flex-col items-center ${
+        flush
+          ? "inset-x-0 top-0"
+          : "top-3 left-[max(0.75rem,var(--sai-l))] right-[max(0.75rem,var(--sai-r))] max-h-[calc(100%-13.5rem)] gap-2 overflow-y-auto md:inset-x-16 md:max-h-none md:overflow-visible"
+      }`}
+    >
+      {hero}
+      <div className={flush ? "rn-safe-x flex w-full flex-col items-center gap-2 pt-2" : "contents"}>
       {loading && (
         <Notice icon={LoaderCircle} tone="info">
           <span className="motion-safe:animate-pulse">Loading incidents and shelters…</span>
@@ -186,6 +200,7 @@ export function TopNotices({ loading, problem, baseMapMissing, outsideCoverage, 
         </Notice>
       )}
       {children}
+      </div>
     </div>
   );
 }

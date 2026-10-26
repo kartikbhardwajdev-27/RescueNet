@@ -20,6 +20,7 @@ import {
 import { haversineM } from "../lib/routing/geometry.js";
 import { navigateHref, parseNavigate } from "../lib/mapFocus.js";
 import { guidanceFor } from "../lib/nearest.js";
+import { limitPadding, safeFitBounds } from "../lib/mapFraming.js";
 
 const failures = [];
 let count = 0;
@@ -300,6 +301,30 @@ check("navigate links", [navigateHref("abc123"), parseNavigate("shelter:abc123")
   const incident = { _id: "i", type: "flood", severity: "high", status: "reported", location: { type: "Point", coordinates: [0.011, 0] } };
   check("guidanceFor: warns about a high incident within 2 km of the shelter", guidanceFor({ from: { lng: 0, lat: 0 }, source: "device", shelter, incidents: [incident] }).warning.count, 1);
   check("guidanceFor: the shelter does not have to have room (the person chose it)", guidanceFor({ from: { lng: 0, lat: 0 }, source: "device", shelter: { ...shelter, status: "full" }, incidents: [] }).shelter.status, "full");
+}
+
+// ---- framing the map ----
+
+check("padding that fits is left alone", limitPadding({ top: 60, bottom: 100, left: 40, right: 40 }, 360, 532), { top: 60, bottom: 100, left: 40, right: 40 });
+{
+  // The case that crashed a 360x740 phone: 300 + 230 px of padding on a 532 px map.
+  const old = limitPadding({ top: 300, bottom: 230, left: 40, right: 40 }, 360, 532);
+  check("the old route padding is scaled down so the two together take at most 70% of the map", old.top + old.bottom <= 532 * 0.7, true);
+  check("... to these pixels", old, { top: 210, bottom: 161, left: 40, right: 40 });
+  check("... evenly (the top stays bigger than the bottom, as asked)", old.top > old.bottom, true);
+}
+check("sides are limited too", limitPadding({ top: 0, bottom: 0, left: 300, right: 300 }, 360, 700), { top: 0, bottom: 0, left: 126, right: 126 });
+check("zero padding stays zero", limitPadding({ top: 0, bottom: 0, left: 0, right: 0 }, 100, 100), { top: 0, bottom: 0, left: 0, right: 0 });
+check("a tiny map gives whole pixels, never negative", Object.values(limitPadding({ top: 90, bottom: 90, left: 90, right: 90 }, 10, 10)).every((n) => Number.isInteger(n) && n >= 0), true);
+{
+  const calls = [];
+  const makeMap = (failTimes) => ({ fitBounds: (b, o) => { calls.push(o.padding); if (calls.length <= failTimes) throw new Error("Invalid LngLat object: (NaN, 90)"); } });
+  calls.length = 0;
+  check("safeFitBounds: works the first time", [safeFitBounds(makeMap(0), "b", { padding: { top: 1 } }), calls.length], [true, 1]);
+  calls.length = 0;
+  check("safeFitBounds: retries with a small even padding when MapLibre throws", [safeFitBounds(makeMap(1), "b", { padding: { top: 500 } }), calls], [true, [{ top: 500 }, 16]]);
+  calls.length = 0;
+  check("safeFitBounds: gives up quietly when it cannot frame at all", [safeFitBounds(makeMap(5), "b", { padding: 1 }), calls.length], [false, 2]);
 }
 
 if (failures.length > 0) {

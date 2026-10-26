@@ -15,6 +15,7 @@
     "check:routing": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/check-routing.mjs",
     "check:engine": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/check-engine.mjs",
     "check:navigation": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/check-navigation.mjs",
+    "check:phone": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/browser/check-phone.mjs",
     "routing:build": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/build-routing.mjs",
     "demo:seed": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/seed-shelters.mjs && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/seed-demo.mjs",
     "demo:wipe": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/seed-demo.mjs --wipe",
