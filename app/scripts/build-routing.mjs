@@ -1,7 +1,7 @@
 // npm run routing:build
 //
 // Builds the offline road graph the app routes on, from OpenStreetMap data:
-//   app/public/routing/tricity-roads.bin.gz   the graph (format: lib/routing/format.js)
+//   app/public/routing/tricity-roads.rnrg   the graph (format: lib/routing/format.js)
 //   app/public/routing/meta.json              build date, counts, bbox, coverage, checksum
 //
 // This is the ONLY step in the project that uses the internet, and only once:
@@ -39,7 +39,12 @@ import { readHighwayWays, readNodes } from "./routing/pbfReader.mjs";
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const outDir = path.join(appRoot, "public", "routing");
-const GRAPH_NAME = "tricity-roads.bin.gz";
+// The file is stored as it is, not gzipped, and its name must NOT end in ".gz": the Android
+// build (Gradle's asset packaging) decompresses any ".gz" asset and drops the extension, so
+// the app inside the APK would find no file of that name. Gzip would only save 0.4 MB and
+// needs DecompressionStream, which old Android WebViews lack. ("rnrg" is the format's magic
+// number; see lib/routing/format.js.)
+const GRAPH_NAME = "tricity-roads.rnrg";
 
 // west, south, east, north: the same box as the offline map (docs/OFFLINE_MAP.md).
 const BBOX = [76.6, 30.55, 76.95, 30.85];
@@ -259,10 +264,9 @@ async function main() {
   console.log(`  ${stats.ways.toLocaleString("en")} ways -> ${stats.edgesBeforeJoin.toLocaleString("en")} edges -> ${stats.edgesAfterJoin.toLocaleString("en")} after joining chains (${seconds(started)})`);
 
   const raw = encodeGraph(graph);
-  const gz = zlib.gzipSync(raw, { level: 9 });
   fs.mkdirSync(outDir, { recursive: true });
-  fs.writeFileSync(path.join(outDir, GRAPH_NAME), gz);
-  const sha256 = crypto.createHash("sha256").update(gz).digest("hex");
+  fs.writeFileSync(path.join(outDir, GRAPH_NAME), raw);
+  const sha256 = crypto.createHash("sha256").update(raw).digest("hex");
 
   const cells = cellCoverage(graph);
   const walkEdges = graph.edges.filter((e) => e.flags & FLAG_WALK).length;
@@ -299,7 +303,7 @@ async function main() {
       drivePieces: stats.drive.pieces,
       cells1km: { total: cells.cells, withWalkRoad: cells.walkCells, withDriveRoad: cells.driveCells },
     },
-    bytes: { gzip: gz.length, uncompressed: raw.length },
+    bytes: { file: raw.length },
     sha256,
   };
   fs.writeFileSync(path.join(outDir, "meta.json"), `${JSON.stringify(meta, null, 2)}\n`);
@@ -313,7 +317,7 @@ async function main() {
   console.log(`  1 km map cells with a road: walking ${cells.walkCells} of ${cells.cells} (${pct(cells.walkCells, cells.cells)}), driving ${cells.driveCells} of ${cells.cells} (${pct(cells.driveCells, cells.cells)})`);
   console.log(`  road types used: ${Object.entries(seenHighways).sort((p, q) => q[1] - p[1]).map(([name, n]) => `${name} ${n}`).join(", ")}`);
   console.log("\nFiles");
-  console.log(`  public/routing/${GRAPH_NAME}  ${mb(gz.length)} (${mb(raw.length)} before gzip)`);
+  console.log(`  public/routing/${GRAPH_NAME}  ${mb(raw.length)} (stored uncompressed; gzip would be ${mb(zlib.gzipSync(raw, { level: 9 }).length)})`);
   console.log(`  public/routing/meta.json  ${fs.statSync(path.join(outDir, "meta.json")).size} bytes`);
   console.log("\nNext: npm run check:routing (distance checks on 10 known place pairs).");
 }

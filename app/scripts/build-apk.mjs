@@ -5,7 +5,13 @@
 //   1. npm run build:mobile       the static export of the UI (app/out), with the map
 //   2. npx cap sync android       copies app/out and the plugin list into the Android project
 //   3. gradlew assembleDebug      compiles it with the JDK and Android SDK in ~/dev
-//   4. copy the result to app/dist/RescueNet.apk
+//   4. copy the result to app/dist/RescueNet.apk, and check what is inside it: the UI,
+//      the offline map and the road graph for directions
+//
+//   npm run apk                 builds
+//   npm run apk -- --offline    the same, but Gradle may not touch the network (it uses
+//                               what it saved on the first build). Use this whenever the
+//                               libraries are already saved: nothing then leaves the laptop.
 //
 // A debug APK is signed with the standard Android debug key, which Gradle makes
 // in ~/.android (outside the repo). It installs on any phone that allows
@@ -30,6 +36,8 @@ const androidDir = path.join(appRoot, "android");
 const builtApk = path.join(androidDir, "app", "build", "outputs", "apk", "debug", "app-debug.apk");
 const finalApk = path.join(appRoot, "dist", "RescueNet.apk");
 const dev = path.join(os.homedir(), "dev");
+
+const gradleOffline = process.argv.includes("--offline");
 
 const fail = (message) => {
   console.error(`\napk failed: ${message}\n`);
@@ -77,11 +85,33 @@ run("2/3 Copy it into the Android project (cap sync)", process.execPath, [path.j
 // Remove the previous APK first so a failed build can never leave a stale one behind.
 fs.rmSync(builtApk, { force: true });
 fs.rmSync(finalApk, { force: true });
-run("3/3 Compile the debug APK (gradle assembleDebug)", path.join(androidDir, "gradlew"), ["assembleDebug", "--no-daemon", "-q"], androidDir);
+run("3/3 Compile the debug APK (gradle assembleDebug)", path.join(androidDir, "gradlew"), ["assembleDebug", "--no-daemon", "-q", ...(gradleOffline ? ["--offline"] : [])], androidDir);
 
 if (!fs.existsSync(builtApk)) fail("Gradle finished but no APK was produced.");
 fs.mkdirSync(path.dirname(finalApk), { recursive: true });
 fs.copyFileSync(builtApk, finalApk);
+
+// What is inside: the files that make the app work with no connection.
+const listing = spawnSync("unzip", ["-l", finalApk], { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
+if (listing.status !== 0) fail("could not list the APK (is unzip installed?).");
+const inside = (name) => {
+  const line = listing.stdout.split("\n").find((entry) => entry.trim().endsWith(name));
+  return line ? Number(line.trim().split(/\s+/)[0]) : null;
+};
+const REQUIRED = [
+  ["the UI (home page)", "assets/public/index.html"],
+  ["the map page", "assets/public/map/index.html"],
+  ["the offline map", "assets/public/maps/tricity.pmtiles"],
+  ["the road graph for directions", "assets/public/routing/tricity-roads.rnrg"],
+  ["the road graph's meta.json", "assets/public/routing/meta.json"],
+  ["the Android manifest", "AndroidManifest.xml"],
+];
+console.log("\nInside the APK:");
+for (const [label, name] of REQUIRED) {
+  const size = inside(name);
+  if (size === null) fail(`the APK has no ${name} (${label}).`);
+  console.log(`  ${label.padEnd(32)} ${name}  ${(size / 1024 / 1024).toFixed(2)} MB`);
+}
 
 const bytes = fs.statSync(finalApk).size;
 const sha256 = crypto.createHash("sha256").update(fs.readFileSync(finalApk)).digest("hex");

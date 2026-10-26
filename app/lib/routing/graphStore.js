@@ -4,7 +4,7 @@
 //   1. Ask the server (or, in the Android app, the app's own files) for
 //      /routing/meta.json. It names the graph file and its checksum.
 //   2. If a saved copy in IndexedDB has the same checksum, use that.
-//   3. Otherwise download /routing/tricity-roads.bin.gz, check its size against
+//   3. Otherwise download /routing/tricity-roads.rnrg, check its size against
 //      meta.json, save it in IndexedDB, and use it.
 //   4. If meta.json cannot be reached and a copy is saved, use the saved copy.
 //
@@ -97,8 +97,8 @@ export function createGraphLoader({ fetchImpl = (...args) => fetch(...args), sto
     if (!response.ok) return null;
     const bytes = await response.arrayBuffer();
     // A download cut short must not be saved as if it were the graph.
-    if (meta.bytes?.gzip && bytes.byteLength !== meta.bytes.gzip) {
-      throw new RoutingDataError("graph-corrupt", `The road data is the wrong size (${bytes.byteLength} bytes, expected ${meta.bytes.gzip}).`);
+    if (meta.bytes?.file && bytes.byteLength !== meta.bytes.file) {
+      throw new RoutingDataError("graph-corrupt", `The road data is the wrong size (${bytes.byteLength} bytes, expected ${meta.bytes.file}).`);
     }
     return bytes;
   }

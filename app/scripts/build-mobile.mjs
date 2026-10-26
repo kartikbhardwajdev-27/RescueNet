@@ -29,6 +29,11 @@
 //      has no HTTP headers to carry one)
 //   6. move the export to app/out/, which `npx cap sync` copies into the APK
 //
+// The road graph for directions (public/routing/, made by npm run routing:build, about
+// 1 MB) is bundled as it is and checked first: both files present, the graph intact
+// (its size and SHA-256 match meta.json). A graph over ROUTING_LIMIT_MB is not bundled
+// without asking: the build stops and says so.
+//
 // The offline map (public/maps/tricity.pmtiles) is bundled as it is. It is not
 // in git (docs/OFFLINE_MAP.md says how to make it), so the build stops if it is
 // missing, and stops above MAP_LIMIT_MB: a bigger map should be downloaded by the
@@ -36,6 +41,7 @@
 // docs/APK_SETUP.md).
 
 import { spawnSync } from "node:child_process";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -45,6 +51,9 @@ const work = path.join(appRoot, "dist", "mobile-src");
 const exportDir = path.join(appRoot, "out");
 const MAP_FILE = path.join("public", "maps", "tricity.pmtiles");
 const MAP_LIMIT_MB = 150;
+const ROUTING_DIR = path.join("public", "routing");
+const ROUTING_FILES = ["tricity-roads.rnrg", "meta.json"];
+const ROUTING_LIMIT_MB = 40;
 
 const fail = (message) => {
   console.error(`\nbuild:mobile failed: ${message}\n`);
@@ -64,6 +73,29 @@ if (mapMb > MAP_LIMIT_MB) {
     `${MAP_FILE} is ${mapMb.toFixed(0)} MB, over the ${MAP_LIMIT_MB} MB limit for bundling it in the app. ` +
       "Extract a smaller area (lower --maxzoom or a tighter --bbox in docs/OFFLINE_MAP.md).",
   );
+}
+
+// The road graph: present, intact, and small enough to bundle without asking.
+let routingBytes = 0;
+for (const name of ROUTING_FILES) {
+  const file = path.join(appRoot, ROUTING_DIR, name);
+  if (!fs.existsSync(file)) fail(`${path.join(ROUTING_DIR, name)} is missing. Make it with npm run routing:build (docs/NAVIGATION.md).`);
+  routingBytes += fs.statSync(file).size;
+}
+const routingMb = routingBytes / 1024 / 1024;
+if (routingMb > ROUTING_LIMIT_MB) {
+  fail(
+    `the road graph is ${routingMb.toFixed(1)} MB, over the ${ROUTING_LIMIT_MB} MB limit. It is not bundled without asking: ` +
+      "check the size with Kartik first, then raise ROUTING_LIMIT_MB in this script.",
+  );
+}
+{
+  const meta = JSON.parse(fs.readFileSync(path.join(appRoot, ROUTING_DIR, "meta.json"), "utf8"));
+  const graph = fs.readFileSync(path.join(appRoot, ROUTING_DIR, meta.file ?? ROUTING_FILES[0]));
+  const sha256 = crypto.createHash("sha256").update(graph).digest("hex");
+  if (sha256 !== meta.sha256 || graph.length !== meta.bytes?.file) {
+    fail("the road graph does not match its meta.json (damaged, or meta.json is from another build). Run npm run routing:build again.");
+  }
 }
 
 fs.rmSync(work, { recursive: true, force: true });
@@ -107,6 +139,9 @@ if (!fs.existsSync(path.join(built, "index.html"))) fail("the export has no inde
 // bundle in the export would mean something leaked in.
 const stray = ["api"].filter((name) => fs.existsSync(path.join(built, name)));
 if (stray.length > 0) fail(`the export contains server routes: ${stray.join(", ")}`);
+for (const name of ROUTING_FILES) {
+  if (!fs.existsSync(path.join(built, "routing", name))) fail(`the export is missing routing/${name}.`);
+}
 for (const page of ["settings", path.join("incidents", "view")]) {
   if (!fs.existsSync(path.join(built, page, "index.html"))) fail(`the export is missing the ${page} page.`);
 }
@@ -165,5 +200,5 @@ function sizeOf(dir) {
   }
   return total;
 }
-console.log(`\nStatic export ready in app/out (${(sizeOf(exportDir) / 1024 / 1024).toFixed(1)} MB, map ${mapMb.toFixed(1)} MB).`);
+console.log(`\nStatic export ready in app/out (${(sizeOf(exportDir) / 1024 / 1024).toFixed(1)} MB, map ${mapMb.toFixed(1)} MB, road graph ${routingMb.toFixed(2)} MB).`);
 console.log("Next: npx cap sync android (npm run apk does the whole chain).");

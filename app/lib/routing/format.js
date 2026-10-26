@@ -1,7 +1,11 @@
 // The road-graph file: how scripts/build-routing.mjs writes it and how the app
 // reads it. One format, one module, so the two can never drift apart.
 //
-// The file is a compact binary, gzipped (public/routing/tricity-roads.bin.gz).
+// The file is a compact binary (public/routing/tricity-roads.rnrg), stored as it is, not
+// compressed: gzip would save only 0.4 MB (1.4 MB to 1.0 MB), would make the app depend on
+// the browser's DecompressionStream (missing from old Android WebViews), and a name ending in
+// ".gz" would be unzipped and renamed by Android's asset packaging. decodeGraphFile still
+// reads a gzipped file if it is given one.
 // Layout (all numbers are LEB128 varints unless a width is given; "zigzag" means a
 // signed number folded into an unsigned one, so small negatives stay small):
 //
@@ -177,7 +181,7 @@ export function encodeGraph(graph) {
 //   shapeStart      Uint32Array (edgeCount + 1): edge i's shape points are
 //                   shapeLat/shapeLon[shapeStart[i] .. shapeStart[i + 1])
 //   shapeLat/shapeLon Int32Array, micro-degrees
-// `bytes` is the uncompressed file; see decodeGraphFile for the gzipped one.
+// `bytes` is the file as stored; see decodeGraphFile, which also accepts a gzipped copy.
 export function decodeGraph(bytes) {
   let pos = 0;
   const readByte = () => {
@@ -288,9 +292,9 @@ export function decodeGraph(bytes) {
   };
 }
 
-// Reads the file as it is served: gzipped bytes (what the build writes) or, for
-// tests, the uncompressed bytes. DecompressionStream is in current browsers, the
-// Android WebView and Node.
+// Reads the file as it is served: the plain bytes (what the build writes) or a gzipped copy
+// (found by its first two bytes, whatever the name). Only the gzipped case needs
+// DecompressionStream, which current browsers and Node have.
 export async function decodeGraphFile(buffer) {
   const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
   if (bytes[0] === 0x1f && bytes[1] === 0x8b) {

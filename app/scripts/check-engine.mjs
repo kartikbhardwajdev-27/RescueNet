@@ -269,7 +269,7 @@ check("grid: 6 junctions and 8 roads were built", [grid.stats.nodes, grid.stats.
 
 // ---- 3. saving the graph on the device ----
 
-const graphPath = path.join(appRoot, "public", "routing", "tricity-roads.bin.gz");
+const graphPath = path.join(appRoot, "public", "routing", "tricity-roads.rnrg");
 const metaPath = path.join(appRoot, "public", "routing", "meta.json");
 const haveRealData = fs.existsSync(graphPath) && fs.existsSync(metaPath);
 let realMeta = null;

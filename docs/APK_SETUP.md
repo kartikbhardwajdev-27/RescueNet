@@ -22,6 +22,7 @@ the phone test in `docs/TEST_CHECKLIST.md` (Part 3) before you rely on it.
 | Home, Map markers, Shelters, Events | live (refreshes every 30 s while open) | the **last copy the phone saved**, with "Saved data from <time>, not live" |
 | Report and SOS | sent at once | **saved on the phone and sent when the laptop is reachable**, each exactly once, SOS first |
 | Login, "My reports", "My events", one incident's page | yes | need the laptop (saved copies are kept only for the four public lists above) |
+| Road directions to a shelter ("Navigate to nearest shelter", Navigate on a shelter) | yes, worked out on the phone from the road file inside the app | **yes**, using the saved shelter and incident lists (see the "not live" banner); limits in [`NAVIGATION.md`](NAVIGATION.md) |
 | Location (SOS, reports, "My location") | Android location permission | same, it does not need the laptop |
 
 "Offline" here means **no internet**. The phone still has to reach the laptop for live
@@ -94,17 +95,26 @@ exists. Check an install with `npx cap doctor`.
 
 You need the offline map file first (`docs/OFFLINE_MAP.md`:
 `public/maps/tricity.pmtiles`, about 4 MB). It is not in git, and the build stops
-with a message if it is missing.
+with a message if it is missing. The **road file for directions**
+(`public/routing/tricity-roads.rnrg`, 1.4 MB, with its `meta.json`) **is** in git; the
+build checks it is there and intact, and stops if it is missing, damaged, or over 40 MB
+(it would not be bundled without asking: `docs/NAVIGATION.md`).
 
 ```sh
 cd ~/Documents/Desktop/RescueNet/app
-npm run apk
+npm run apk -- --offline
 ```
+
+`-- --offline` tells Gradle it may not touch the network (it uses the libraries saved by
+the first build), so nothing leaves the laptop. Leave it out only on the very first
+build, which has to download them.
 
 This runs `npm run build:mobile` (the UI as a static export, `app/out`), copies it
 into the Android project (`npx cap sync android`) and compiles it with Gradle, then
-copies the result to **`app/dist/RescueNet.apk`** (about 21 MB) and prints its size
-and checksum. It takes under a minute once the tools are downloaded.
+copies the result to **`app/dist/RescueNet.apk`** (about 22 MB) and prints its size and
+checksum. It then **opens the APK and checks what is inside** (the pages, the map, the road
+file and its `meta.json`, the manifest) and stops if anything is missing. It takes under a
+minute once the tools are downloaded.
 
 - It is a **debug** build, signed with the standard Android debug key that Gradle
   keeps in `~/.android`. That is fine for installing on your own phones. It is not
@@ -194,7 +204,17 @@ I did **not** run the APK on a phone or emulator. What I did check, and how:
 - **APK contents** (`aapt2`, `apksigner`, `unzip`): package `in.rescuenet.app`, Android
   7.0+ (API 24), target API 36, location and internet permissions, cleartext allowed,
   backups off, debug-signed, the pages, the 3.7 MB map and 1,000+ map font/sprite files
-  inside, no API route files.
+  inside, no API route files. Since Step 26 also the **1.4 MB road file**, with the same
+  SHA-256 as `app/public/routing/`, and the routing worker script.
+- **Directions in the app's files** (headless Chrome, the exact `app/out` export, the
+  server then blocked): a route from the saved shelter and incident lists, the "not live"
+  banner, the routing worker running as a real Web Worker, "Start" following a faked
+  position. **Not verified:** Android's WebView running the worker and IndexedDB, Android's
+  file server serving the road file, the speed on a phone, real GPS (checklist section 16).
+- **Lesson from the road file:** Android's build tools unzip any asset whose name ends in
+  `.gz` and drop that extension. The road file was first called `.bin.gz` and would have
+  been missing on the phone with no error; it is now `tricity-roads.rnrg`, and `npm run
+  apk` fails if it is not inside the APK.
 - **The same screens** (the exact `app/out` export) in headless Chrome against a real
   production server, with a stand-in for the phone's native layer (the Capacitor
   plugins fall back to browser equivalents there): first-run screen, address
@@ -234,8 +254,8 @@ I did **not** run the APK on a phone or emulator. What I did check, and how:
    map over 150 MB. Downloading a bigger map on first run (with progress) is **not
    built**. The Tricity map is 3.7 MB.
 8. **Other limits:** no push notifications (the app checks while it is open); the four
-   saved lists are public ones, not "my reports"; straight-line guidance only, as on
-   the website; Android only (no iOS).
+   saved lists are public ones, not "my reports"; road directions have the limits in
+   `docs/NAVIGATION.md` (estimates, no traffic, no turn restrictions); Android only (no iOS).
 
 ## Troubleshooting
 

@@ -5,7 +5,7 @@
 //   1. The road rules (highwayRules.mjs): which tags make a road walkable / drivable.
 //   2. The graph file format: write, read back, compare.
 //   3. The graph builder on a small made-up map whose result is worked out by hand.
-//   4. The REAL file (public/routing/tricity-roads.bin.gz), if it has been built:
+//   4. The REAL file (public/routing/tricity-roads.rnrg), if it has been built:
 //      road distance between known places divided by the straight-line distance must
 //      be between 1.0 and 2.0. Anything outside is flagged as an outlier. A place with
 //      no road within 300 m is reported as "outside coverage" (the rule the router
@@ -14,9 +14,11 @@
 // The expected numbers in 1-3 are worked out from the rules and the geometry, not
 // copied from the code's output. Part 4 uses a plain Dijkstra written here, so it
 // does not depend on the routing engine in lib/routing/.
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import zlib from "node:zlib";
 import { CLASS_CODE, decodeGraph, decodeGraphFile, encodeGraph, FLAG_DRIVE, FLAG_ONEWAY, FLAG_ROUNDABOUT, FLAG_WALK, ROAD_CLASSES } from "../lib/routing/format.js";
 import { bearingDeg, haversineM, projectOnSegment, turnAngle } from "../lib/routing/geometry.js";
 import { buildGraph, joinChains } from "./routing/graphBuilder.mjs";
@@ -125,6 +127,11 @@ check("every class has a code", ROAD_CLASSES.every((name) => CLASS_CODE[name] ==
   check("format: shape index", Array.from(read.shapeStart), [0, 2, 2, 3, 3]);
   check("format: shape latitudes", Array.from(read.shapeLat), [30_600_000, 30_650_000, 30_700_000]);
   check("format: shape longitudes", Array.from(read.shapeLon), [76_650_000, 76_640_000, 76_800_000]);
+  const bytes = encodeGraph(graph);
+  const zipped = zlib.gzipSync(bytes);
+  const fromGzip = await decodeGraphFile(zipped);
+  check("format: a gzipped copy is still read (found by its first bytes)", [zipped[0], zipped[1], fromGzip.names, Array.from(fromGzip.edgeLenDm)], [0x1f, 0x8b, graph.names, [123_456, 1, 4_000_000, 70_000]]);
+  check("format: the plain file is read as it is", Array.from((await decodeGraphFile(bytes)).nodeLat), Array.from(graph.nodeLat));
   let refused = "";
   try {
     decodeGraph(Uint8Array.from([1, 2, 3, 4, 5]));
@@ -369,14 +376,17 @@ const MIN_VALID_PAIRS = 10;
 const outliers = [];
 const outside = [];
 const report = [];
-const file = path.join(appRoot, "public", "routing", "tricity-roads.bin.gz");
+const file = path.join(appRoot, "public", "routing", "tricity-roads.rnrg");
 const metaFile = path.join(appRoot, "public", "routing", "meta.json");
 let realFile = "not built (run npm run routing:build); part 4 skipped";
 if (fs.existsSync(file) && fs.existsSync(metaFile)) {
   const graph = await decodeGraphFile(fs.readFileSync(file));
+  check("real file: stored uncompressed (the phone needs no DecompressionStream)", [fs.readFileSync(file)[0], fs.readFileSync(file)[1]], [0x52, 0x4e]);
+  check("real file: its size and checksum match meta.json", [fs.statSync(file).size, createHash("sha256").update(fs.readFileSync(file)).digest("hex")], [JSON.parse(fs.readFileSync(metaFile, "utf8")).bytes.file, JSON.parse(fs.readFileSync(metaFile, "utf8")).sha256]);
   const meta = JSON.parse(fs.readFileSync(metaFile, "utf8"));
   realFile = `${(fs.statSync(file).size / 1024 / 1024).toFixed(2)} MB, ${graph.nodeLat.length} nodes, ${graph.edgeA.length} edges`;
 
+  check("real file: the file's name does not end in .gz (the Android build would unzip it and drop the extension)", [meta.file.endsWith(".gz"), file.endsWith(".gz"), meta.file], [false, false, "tricity-roads.rnrg"]);
   check("real file: meta.json node count matches the file", meta.counts.nodes, graph.nodeLat.length);
   check("real file: meta.json edge count matches the file", meta.counts.edges, graph.edgeA.length);
   check("real file: meta.json bbox matches the file", meta.bbox, graph.bbox);

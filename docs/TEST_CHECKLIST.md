@@ -1,4 +1,4 @@
-# RescueNet: hand-test checklist (Steps 10 to 22)
+# RescueNet: hand-test checklist (Steps 10 to 26)
 
 Everything you must try yourself, in the order that matters most for the demo.
 Tick a box only when you saw the expected result.
@@ -173,6 +173,13 @@ organization, so you never log in and out.
     citizen and organization), so the internet being gone cannot change anything.
 
 ## 4. Nearest shelter (Step 15)
+
+> **Changed in Step 25:** the map's button is now **Navigate to nearest shelter** and it
+> gives **road directions** (Part 4, section 15). The straight-line dashed line described
+> in 4.1 now appears on the map only as the **fallback** (no road data, or you are outside
+> the mapped area; tests 15.6 and 15.7), and on the **Shelters** page, whose
+> **Nearest shelter** button is unchanged (4.4). Tests 4.2 and 4.3 still apply as written
+> (the same panels and warnings).
 
 - [ ] **4.1 On the map.**
   1. Production server running. Chrome: open `http://localhost:3000/map`, **allow
@@ -527,6 +534,226 @@ the phone on the laptop's hotspot). Note the address from `npm run lan:url`.
   - **Stand-in: passed** that the app's pages make no request except to the app and
     the saved laptop address (and its policy blocks any other).
     **Not verified at all:** a phone in airplane mode.
+
+---
+
+# Part 4: road navigation to a shelter (Steps 23 to 26)
+
+Read `docs/NAVIGATION.md` first: it lists what directions **cannot** do (no traffic, no turn
+restrictions, one-ways may be incomplete, times are estimates, closures only from reported
+incidents). Say that out loud when you demonstrate it.
+
+**Before you start:** `npm run build`, `npm run start:lan`, MongoDB running, demo data
+(`npm run demo:seed`: it contains an active **flood** and two **fires** that make the amber
+danger rings). Chrome at `http://localhost:3000/map`, location allowed.
+
+**No real GPS on a laptop?** Chrome DevTools can fake it: Cmd+Option+I, then the three
+dots, **More tools**, **Sensors**, **Location**. Choose **Other** and type
+`30.7398` and `76.7827` (Sector 17). Pick **Location unavailable** to test refusal.
+
+## 15. Directions on the laptop (Steps 23 to 25)
+
+- [ ] **15.1 Navigate to nearest shelter.**
+  1. Set the faked location to Sector 17. Press **Navigate to nearest shelter**.
+  - **Expected:** a blue route on the map; a panel "Nearest shelter by road" with the
+    shelter's name (from Sector 17 it is **Mohali Phase 7** with the demo data; the Sector
+    22 camp is full and Kharar is closed, so neither is chosen), a distance such as
+    "8.7 km", a time such as "≈ 1 h 49 min" **with the words "Estimate" and "No live
+    traffic"**, **Walk** selected, and the text "Shortest by road of the 3 nearest open
+    shelters". "© OpenStreetMap contributors" is visible at the bottom right of the map.
+  - **Automated check: passed** (headless Chrome, faked Sector 17: panel, route, estimate
+    wording, the distance matched an independent run of the engine, phone-size layout).
+    **Not verified at all:** that the route follows the real roads and looks right to you.
+
+- [ ] **15.2 Walk and Drive.**
+  1. Press **Drive**, then **Walk**.
+  - **Expected:** by car the time drops sharply (about 16 min for 9.8 km) and the distance
+    may change; back on foot it returns. The choice is remembered on this browser.
+  - **Automated check: passed.**
+
+- [ ] **15.3 The list of directions.**
+  1. Press **Directions**.
+  - **Expected:** numbered steps with a distance each: "Head west along the footpath",
+    "Turn left onto ...", "Bear right ...", "Enter the roundabout", "Exit the roundabout
+    onto Jan Marg", ending "You have arrived at DEMO: Mohali Phase 7 School Shelter".
+    Many roads say "the road" or "the footpath": only 8 percent of roads here have a name
+    in OpenStreetMap.
+  - **Automated check: passed** (38 steps in the Sector 17 route; the wording rules are
+    in `npm run check:navigation`). **Not verified at all:** that the instructions match
+    what you would see on the street.
+
+- [ ] **15.4 Navigate from a shelter.**
+  1. Tap a green shelter marker, then **Navigate** in its popup.
+  2. Open **Shelters** and press **Navigate** on any card.
+  3. Navigate to the **Sector 22** camp (full).
+  - **Expected:** step 1 and 2: "Directions to shelter" for that shelter (step 2 opens the
+    map for you). Step 3: an amber **"This shelter is full right now"** warning, and the
+    route is still given.
+  - **Automated check: passed.**
+
+- [ ] **15.5 Danger zones and warnings.**
+  1. With the demo scene loaded, navigate from Sector 17 to **Mohali Phase 7**. Look for
+     the dashed amber rings on the map.
+  2. Log in as the organization and report (or ask a citizen to report) a **flood** with
+     severity **critical** at a shelter's address, then navigate to that shelter.
+     Afterwards mark that incident **resolved**.
+  - **Expected:** step 1: the route is **longer than the direct one** (8.7 km, where 7.9 km
+    would cross the flood area) because it steers round the rings. Step 2: a warning
+    **"No route that avoids reported danger was found"** with "call 112" (the route is
+    still shown, never blocked); a **medical** incident beside the route instead gives
+    "Passes an active incident". Once resolved, the warning is gone.
+  - **Automated check: passed** (with incidents injected in the browser, not saved: the
+    warning appears exactly when the engine finds the route crosses a zone; a resolved
+    flood is ignored). **Not verified at all:** how you judge the warning wording.
+
+- [ ] **15.6 Road data missing: straight line instead.**
+  1. In DevTools, **Application**, **Storage**, **Clear site data**. Then **Network**,
+     **Network request blocking**, add `*/routing/*`. Reload the map and press **Navigate
+     to nearest shelter**.
+  - **Expected:** the panel says **"No road directions: The road data isn't on this device
+    yet..."**, then the straight-line distance and compass direction, **"Straight-line
+    distance, not a road route"**, and the dashed line on the map, plus **Try again**.
+    Remove the blocking, press **Try again**: real directions appear.
+  - **Automated check: passed.**
+
+- [ ] **15.7 Outside the mapped area.**
+  1. Set the faked location to **Other**: `28.6139`, `77.2090` (Delhi). Press **Navigate to
+     nearest shelter**.
+  - **Expected:** "No road directions: There is no mapped road within 300 m of your
+    position, or you are outside Chandigarh, Mohali and Panchkula", with the straight line.
+  - **Automated check: passed.**
+
+- [ ] **15.8 Start: follow a moving person.**
+  1. Start a route from Sector 17 on foot. Press **Start**.
+  2. In Sensors, change the location a little at a time along the route (for example copy
+     coordinates a few hundred metres further along the blue line).
+  3. Then jump to a place about 300 m **beside** the route, and wait a few seconds.
+  4. Then set the location to the shelter.
+  - **Expected:** a "next instruction" box at the top of the panel ("Next in 150 m"); the
+    current step highlighted in **Directions**; the map keeps you in view (drag the map and
+    a **Re-centre on me** button appears). Step 3: "You are off the route", then, on the
+    second reading, a **new route from where you are** (the steps change). Step 4: "You
+    have arrived at ...".
+  - **Automated check: passed** with a *faked* position moving along the route (the step
+    highlight moved through 6 different steps; arrival; off route after a second reading;
+    new route; progress shown at once). **Not verified at all:** real GPS movement (see 16.4).
+
+- [ ] **15.9 No internet.**
+  1. Open the map once (this saves the roads on the device). Turn the Mac's **WiFi off**.
+     Press **Navigate to nearest shelter**, and reload the page and press it again.
+  - **Expected:** it works both times: the server is on the laptop, and the road data is
+    already on the device. Nothing waits on the internet.
+  - **Automated check: passed** for the first press (network switched off in headless
+    Chrome with the page open; the road data and the page's lists already on the device).
+    **Not run automatically:** the reload with the Mac's WiFi off (the server is on the
+    same laptop, so it should load; that is yours to see).
+
+- [ ] **15.10 The road file is not new every time.**
+  1. Run `npm run routing:build -- --no-download`, then reload the map twice.
+  - **Expected:** the build prints "Using the saved extract ... No download." and finishes
+    in about 20 seconds with **the same checksum** as before (the build is repeatable).
+    The map uses the saved road file and only fetches a new one when `meta.json` shows a
+    different checksum.
+  - **Automated check: passed** (two builds from the same extract gave the same SHA-256).
+
+## 16. Directions in the Android app (Step 26)
+
+**Nothing in this section has been run on a phone.** The road file is inside the APK and I
+checked it there (same SHA-256 as `app/public/routing/`, the worker scripts packaged), and
+I ran the exact exported UI in headless Chrome against a real server, then **blocked the
+server**: it showed the saved lists with "Saved data from ..., not live" and gave the same
+directions. That does not test Android itself: the WebView, its file server, the worker,
+Android's location dialog and GPS. That is what you test here. Rebuild first with
+`npm run apk -- --offline` (offline: Gradle may not touch the network) and reinstall the APK.
+
+- [ ] **16.1 Directions on the phone, laptop on.**
+  1. Open the app, **Map**, allow location. Press **Navigate to nearest shelter**, then
+     **Start**.
+  - **Expected:** the same panel as on the laptop, with a route and an estimate. Tell me if
+    the panel overlaps the buttons or the system bar, or if the first press takes long
+    (the first route reads the road file).
+  - **Stand-in: passed** (the exported UI in a 390 px wide window). **Not verified at
+    all:** Android.
+
+- [ ] **16.2 Laptop off, then airplane mode.**
+  1. With the app showing live data (open Home, Shelters and Map once), stop the server on
+     the laptop. Close and reopen the app. On the Map press **Navigate to nearest shelter**.
+  2. Turn on **Airplane mode**. Close and reopen the app, Map, press it again.
+  - **Expected:** both times: the amber **"Saved data from <time>, not live"** banner, and
+    directions to the same shelter. The shelter's free spaces are as old as the banner says.
+  - **Stand-in: passed** (server blocked in headless Chrome: saved lists, banner, the same
+    shelter and time). **Not verified at all:** a phone in airplane mode.
+
+- [ ] **16.3 The first press with no road file.**
+  1. (Optional) Only if you suspect the file is missing: Settings, apps, RescueNet, clear
+     data, then open the app with the laptop off and press **Navigate**.
+  - **Expected:** since the road file is inside the APK, directions still work. If you see
+    "The road data isn't on this device yet", tell me: it means the APK did not include it.
+  - **Automated check: passed** that the APK contains it (same checksum). **Not verified at
+    all:** Android's file server actually handing it to the app. (A first version failed
+    exactly here: the build tools unzipped a file named `.gz` and dropped the extension. It
+    is now named `tricity-roads.rnrg`, and `npm run apk` checks the file is inside.)
+
+- [ ] **16.4 A real walk.** *(This is the test that matters most.)*
+  1. Pick a destination about **500 m to 1 km** away on foot that is inside the area, for
+     example walk from one end of a sector to a shelter's address. Open the map outside,
+     screen on, phone not in a pocket. Press **Navigate to nearest shelter** (or **Navigate**
+     on a shelter's popup), then **Start**, and begin walking.
+  2. Notice: does the blue dot match where you are? Do the instructions arrive **before**
+     each turn ("Next in 40 m")? Is the street or footpath they name the one in front of you?
+  3. Deliberately take a **wrong turn** and walk about 100 m away from the route.
+  4. Then walk to the destination.
+  - **Expected:** the next-instruction box counts down as you walk and changes at each
+    turn; the highlighted step moves. After the wrong turn, within a few seconds: "You are
+    off the route", then a **new route** from where you stand. At the end: "You have arrived".
+  - **Write down:** how far off the dot was (GPS accuracy), whether any instruction was
+    wrong (turn left when it was right, a road that does not exist, a footpath that is
+    really a private lane), and whether it kept updating with the screen locked (it will
+    **not**: it only works with the app open and the screen on).
+  - **Not verified at all:** this is the one real-world test; I could only fake a position.
+
+- [ ] **16.5 Location refused.**
+  1. In Android's settings, deny RescueNet's location permission, open the app and press
+     **Navigate to nearest shelter**.
+  - **Expected:** the **"We need your location"** panel with **Try again**, unless your
+    account has a saved location, in which case directions start from that saved place and
+    say so. Pressing **Start** with location denied says it could not follow your position.
+  - **Stand-in: not run** (a desktop browser's permission, not Android's).
+
+## What I audited in Steps 23 to 26
+
+- `npm run lint`, `npm run build` (the website), `npm run build:mobile` and `npm run apk -- --offline`
+  (offline Gradle build, 21.8 MB) all pass. Checks: `check:routing` (126: road rules, file
+  format, a hand-made map, 13 known place pairs), `check:engine` (434: the engine on a hand-made
+  grid with hand-worked distances, the offline cache with a pretend network and database, the
+  worker client, A* against plain Dijkstra on 44 real routes), `check:navigation` (117: turn
+  words, following a route, warnings, wording), plus the older `check:triage` (220),
+  `check:nearest` (88) and `check:mobile` (63).
+- **Road data:** from Geofabrik (the Overpass API refused automated queries), MD5 verified,
+  67,478 junctions, 90,892 road pieces, 99.0% of the roads kept, 1.4 MB. Road distance
+  divided by straight-line distance on 22 real routes (walk and drive): **1.09 to 1.53**, none
+  outside 1.0 to 2.0. Two places are "outside coverage" (more than 300 m from any public
+  road), listed in `docs/NAVIGATION.md`.
+- **Real Chrome, headless**, against the production build: 38 checks of the website (route,
+  estimate wording, Walk/Drive, steps, Start with a faked moving position, going off the
+  route, reroute, popups, cards, deep links, fallbacks, no network, phone layout), 6 of the
+  warnings (incidents injected in the browser, never saved) and 12 of the exported app (the
+  files inside the APK, with the server blocked). The Web Worker, IndexedDB copy and the
+  service worker's cache of the worker scripts were checked in the same way.
+- **APK contents:** the road graph, the worker scripts and the map are inside; the graph
+  has the same SHA-256 as the source file; manifest has INTERNET, location (fine and coarse).
+- **A bug the APK check caught:** the first road file was called `tricity-roads.bin.gz`;
+  Android's asset packaging unzips such files and drops the extension, so the phone would
+  have found nothing and silently shown straight lines. Renamed to `tricity-roads.rnrg`,
+  stored uncompressed (gzip saved only 0.4 MB and needs a newer WebView), and `npm run apk`
+  now fails if the graph is not inside the APK.
+- **A bug the browser test caught:** after a reroute the panel said "Waiting for your
+  position" until the next GPS reading. It now shows progress at once. And on a phone the
+  panel first ran under the bottom buttons with Start out of sight; it is now capped in height
+  with Start visible.
+- **Not tested at all:** a real phone, real GPS movement, real streets, Android's WebView, the
+  speed on a phone, whether the estimated times are realistic, whether OpenStreetMap is right
+  about one-ways and private roads in your neighbourhood.
 
 ## What I audited in Steps 19 to 22
 

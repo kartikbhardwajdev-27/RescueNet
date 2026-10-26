@@ -96,6 +96,11 @@ Chandigarh, Mohali and Panchkula). It is **not in git**. Either:
 Without it the app still runs, but the map shows "Offline map tiles are missing"
 over a blank background.
 
+**Road directions need nothing from you:** the road file they use
+(`app/public/routing/tricity-roads.rnrg`, 1.4 MB) **is in git**, so a fresh clone can
+give directions with no internet. You only run `npm run routing:build` (one download of
+about 214 MB) to refresh the roads: see [`NAVIGATION.md`](NAVIGATION.md).
+
 ## 7. Fill the database with the demo
 
 ```sh
@@ -186,8 +191,11 @@ npm run check:nearest   # the distance and direction maths (88 checks)
 
 ## Known limits (said plainly)
 
-- **Guidance is a straight line.** "Nearest shelter" gives distance and a compass
-  direction, not a road route. There is no routing engine.
+- **Directions are estimates.** "Navigate to nearest shelter" works out a road route on
+  the device from saved OpenStreetMap roads: no live traffic, no turn restrictions,
+  one-ways may be incomplete, and closures are known only from incidents reported in
+  RescueNet. Without road data, or outside the mapped area, it gives a straight line
+  instead. Details: [`NAVIGATION.md`](NAVIGATION.md).
 - **The map covers one area**: Chandigarh, Mohali and Panchkula. Elsewhere the
   basemap is blank (incidents and shelters still appear).
 - **"Suggested priority" is a short list of keyword rules**, not a judgement. It

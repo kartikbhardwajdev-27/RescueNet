@@ -1,6 +1,6 @@
 # RescueNet build plan
 
-Instructions for the `rescuenet-builder` agent. Follow this file exactly. Steps 1 to 22 are already built. Do steps 23 to 26 in order, one at a time (offline road navigation to the nearest shelter).
+Instructions for the `rescuenet-builder` agent. Follow this file exactly. Steps 1 to 26 are built. The last four (23 to 26) were offline road navigation to the nearest shelter.
 
 ## How to work
 

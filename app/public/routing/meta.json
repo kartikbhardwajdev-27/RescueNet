@@ -1,9 +1,9 @@
 {
   "name": "RescueNet road graph",
-  "file": "tricity-roads.bin.gz",
+  "file": "tricity-roads.rnrg",
   "format": "RNRG",
   "formatVersion": 1,
-  "builtAt": "2026-10-25T20:19:27.262Z",
+  "builtAt": "2026-10-26T15:38:16.539Z",
   "bbox": [
     76.6,
     30.55,
@@ -43,8 +43,7 @@
     }
   },
   "bytes": {
-    "gzip": 1024378,
-    "uncompressed": 1443542
+    "file": 1443542
   },
-  "sha256": "db7e181d7287119cd7efb437bd53d55b2af4dd9f56b25fc10ac750843fd57bc3"
+  "sha256": "cb62051efd3a225c189c22d84322870afe097302696638cd5fcc4e2a0f24ba74"
 }

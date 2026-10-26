@@ -8,8 +8,9 @@ import { toneClasses } from "./tones";
 const ACTIONS = [
   { id: "report", title: "Report Incident", description: "Flag a hazard or emergency", href: "/report", icon: "file-plus", tone: "amber" },
   { id: "shelter", title: "Find Shelter", description: "Open shelters near you", href: "/shelters", icon: "house-plus", tone: "green" },
-  // Straight-line guidance only: there is no routing, so the tile says so.
-  { id: "nearest", title: "Nearest Shelter", description: "Distance and direction, not a road route", href: "/map?nearest=1", icon: "compass", tone: "green" },
+  // Opens the map and starts road directions to the nearest open shelter (a straight line
+  // instead when there is no road data or the person is outside the mapped area).
+  { id: "nearest", title: "Nearest Shelter", description: "Road directions to the closest open shelter", href: "/map?nearest=1", icon: "compass", tone: "green" },
   { id: "numbers", title: "Emergency Numbers", description: "Call 112, 100, 101 or 108", href: "/resources", icon: "life-buoy", tone: "blue" },
 ];
 
