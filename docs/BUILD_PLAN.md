@@ -1,6 +1,6 @@
 # RescueNet build plan
 
-Instructions for the `rescuenet-builder` agent. Follow this file exactly. Steps 1 to 26 are built. The last four (23 to 26) were offline road navigation to the nearest shelter.
+Instructions for the `rescuenet-builder` agent. Follow this file exactly. Steps 1 to 26 are built. Do steps 27 and 28 in order, one at a time (a phone-sized navigation panel, then navigation to any pin).
 
 ## How to work
 
@@ -11,7 +11,7 @@ Instructions for the `rescuenet-builder` agent. Follow this file exactly. Steps 
 5. Continue to the next step automatically only if the current step fully passed its verification. If a step fails twice, stop and report. Do not guess.
 6. When something is not specified, pick the simplest option and mention it in your report.
 7. After each step, report briefly: what you built, files changed, what you verified and how, what you could NOT verify, and anything Kartik must do by hand.
-8. After step 26, stop. Do not invent extra steps.
+8. After step 28, stop. Do not invent extra steps.
 
 ## Standing rules
 
@@ -226,4 +226,28 @@ Verify: lint, both builds, and the UI in a browser with the server reachable and
 4. Commit only files under 15 MB. For anything larger, commit the build script and docs only. Stage by explicit path and do not edit `.gitignore`.
 5. Report what you could NOT verify (real GPS movement, Android, real roads).
 
-Verify: the APK contains the road graph, plus lint and both builds. After Step 26, stop.
+Verify: the APK contains the road graph, plus lint and both builds.
+
+---
+
+## Step 27: Navigation panel redesign
+
+The target is a phone screen (360x740). On a real phone the route panel is too tall and covers the map, its top line is cut off, and the floating buttons overlap each other.
+
+1. While a route exists, use a Google-Maps-like layout. (a) A compact instruction card at the top of the map area: icon, instruction, distance to the next turn, at most 2 lines. (b) A slim bottom strip with the distance, the estimated time (still labelled as an estimate), the Walk/Drive toggle, Stop, and a chevron that opens the full directions list as a sheet covering at most 45% of the screen and scrolling inside itself. (c) The map stays visible in between. Collapsed panels use at most 30% of the viewport height.
+2. Collapsed by default. The directions list opens only on tap. Never clip text: the destination name truncates to one line with an ellipsis.
+3. During navigation hide the filter chips and the legend card (show them again on Stop) and hide the "Navigate to nearest shelter" button. Merge "My location" and "Re-centre" into one round button on the right edge above the bottom strip. The bottom tab bar and the SOS button stay reachable.
+4. Show "You are off the route" as a small banner under the instruction card, not inside a big panel, and dismiss it after the reroute.
+5. Respect the safe-area insets.
+
+Verify: in headless Chrome at 360x740, 390x844 and 412x915 with a route active, use getBoundingClientRect to prove that no two interactive elements overlap, no text is clipped, collapsed panels use at most 30% of the height, and the map keeps at least 50% of the height. Save screenshots and describe them. Lint and both builds.
+
+## Step 28: Navigate to any pin
+
+1. Add "Navigate here" to every map popup and every list item that has a location: incidents (Home Nearby, Recent activity, the incident page, My reports) and shelters. Keep "Navigate to nearest shelter" as it is.
+2. For a destination incident, exclude ITS OWN avoid zone from the cost penalty and from the "passes an active incident" warning. Other incidents still count. Snap the destination to the nearest road within 300 m; if it is farther, say so and show the straight-line distance.
+3. Safety. For an active incident (status reported or in_progress) show a warning in the panel: "This is an active incident. Keep a safe distance. If you are in danger, call 112." For high or critical severity, ask for confirmation before starting ("Navigate to an active incident?" Cancel / Continue). Resolved incidents get no warning. Stop the route at the nearest road point and label it "Nearest road to the incident"; never route to the exact incident point.
+4. It must work in the Android app with the saved lists and the server unreachable, like shelter navigation.
+5. Update `docs/NAVIGATION.md` and `docs/TEST_CHECKLIST.md`.
+
+Verify: tests for an incident with another incident in the way, a resolved incident, an incident outside coverage, a destination inside its own zone, and a critical incident (confirmation shown). Rebuild with `npm run apk -- --offline`. After Step 28, stop.
