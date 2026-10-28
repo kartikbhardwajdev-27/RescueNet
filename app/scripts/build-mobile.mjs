@@ -119,6 +119,18 @@ fs.symlinkSync(path.join(appRoot, "node_modules"), path.join(work, "node_modules
 fs.cpSync(path.join(appRoot, "mobile", "overlay"), work, { recursive: true });
 fs.copyFileSync(path.join(appRoot, "mobile", "next.config.mjs"), path.join(work, "next.config.mjs"));
 
+// RESCUENET_SERVER_URL: the address the first-run screen starts with (for example the hosted
+// site, https://rescuenet.example.com). Checked with the same rules as the Settings page; it is
+// only a default, the person can still change it in the app.
+let defaultServerUrl = "";
+if (process.env.RESCUENET_SERVER_URL) {
+  const { normalizeServerAddress } = await import(path.join(appRoot, "lib", "serverAddress.js"));
+  const checked = normalizeServerAddress(process.env.RESCUENET_SERVER_URL);
+  if (!checked.ok) fail(`RESCUENET_SERVER_URL is not usable: ${checked.error}`);
+  defaultServerUrl = checked.url;
+  console.log(`The app's first-run address will start as ${defaultServerUrl}`);
+}
+
 console.log("Building the static export for the Android app…\n");
 const nextBin = path.join(appRoot, "node_modules", "next", "dist", "bin", "next");
 const build = spawnSync(process.execPath, [nextBin, "build"], {
@@ -128,6 +140,7 @@ const build = spawnSync(process.execPath, [nextBin, "build"], {
     ...process.env,
     NEXT_TELEMETRY_DISABLED: "1",
     RESCUENET_APP_ROOT: appRoot,
+    NEXT_PUBLIC_RESCUENET_SERVER_URL: defaultServerUrl,
   },
 });
 if (build.status !== 0) fail(`next build exited with ${build.status}. The scratch copy is kept in dist/mobile-src.`);

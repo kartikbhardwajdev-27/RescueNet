@@ -9,7 +9,7 @@ import Shelter from "@/models/Shelter";
 // Only the organization that created a shelter may change it, and only its
 // occupied, capacity and status. Seeded demo shelters have no owner, so nobody can.
 export async function PATCH(request, { params }) {
-  const limited = rateLimit(request, "updates");
+  const limited = await rateLimit(request, "updates");
   if (limited) return limited;
 
   const user = await getCurrentUser();

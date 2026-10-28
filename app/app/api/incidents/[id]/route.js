@@ -22,7 +22,7 @@ export async function GET(_request, { params }) {
 // Only organizations may change an incident's status, and status is the only
 // field they may change.
 export async function PATCH(request, { params }) {
-  const limited = rateLimit(request, "updates");
+  const limited = await rateLimit(request, "updates");
   if (limited) return limited;
 
   const user = await getCurrentUser();

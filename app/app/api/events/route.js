@@ -33,7 +33,7 @@ export async function GET(request) {
 
 // Only logged-in organizations may post events.
 export async function POST(request) {
-  const limited = rateLimit(request, "events");
+  const limited = await rateLimit(request, "events");
   if (limited) return limited;
 
   const user = await getCurrentUser();

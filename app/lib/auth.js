@@ -51,9 +51,12 @@ export function verifyToken(token) {
 // logged in there (register and login appeared to work, then the next request was
 // anonymous). So the cookie is Secure only when the request really was https:
 // the last x-forwarded-proto entry is the one a reverse proxy in front adds, and
-// COOKIE_SECURE=true forces it for a deployment whose proxy does not send it.
+// COOKIE_SECURE=true forces it for a deployment whose proxy does not send it, and
+// COOKIE_SECURE=false forces it off. Vercel sends x-forwarded-proto: https, so a hosted
+// deployment needs neither.
 async function cookieShouldBeSecure() {
   if (process.env.COOKIE_SECURE === "true") return true;
+  if (process.env.COOKIE_SECURE === "false") return false;
   const forwarded = (await headers()).get("x-forwarded-proto");
   return forwarded?.split(",").at(-1).trim().toLowerCase() === "https";
 }

@@ -31,7 +31,7 @@ export async function POST(request) {
     if (existing) return replay(existing);
   }
 
-  const limited = rateLimit(request, "sos");
+  const limited = await rateLimit(request, "sos");
   if (limited) return limited;
 
   const body = await readJsonBody(request);

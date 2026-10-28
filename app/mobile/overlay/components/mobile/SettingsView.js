@@ -6,6 +6,7 @@ import { useAuth } from "@/components/AuthProvider";
 import Card from "@/components/Card";
 import { useToast } from "@/components/SosProvider";
 import { getSnapshot, SERVER_SNAPSHOT, subscribe } from "@/lib/native/storage";
+import { DEFAULT_SERVER_URL } from "@/lib/native/defaultServer";
 import ServerAddressForm from "./ServerAddressForm";
 
 // Settings page of the Android app (the page itself exists only in the app build).
@@ -30,7 +31,7 @@ export default function SettingsView() {
           and type the address it prints. The phone and the laptop must be on the same WiFi, or the phone on the laptop&apos;s
           hotspot.
         </p>
-        <ServerAddressForm initialValue={serverUrl} submitLabel="Save" onSaved={handleSaved} />
+        <ServerAddressForm initialValue={serverUrl || DEFAULT_SERVER_URL} submitLabel="Save" onSaved={handleSaved} />
       </Card>
 
       <Card lift={false}>

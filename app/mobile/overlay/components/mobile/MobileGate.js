@@ -5,6 +5,7 @@ import { Laptop, LoaderCircle } from "lucide-react";
 import Card from "@/components/Card";
 import Logo from "@/components/Logo";
 import { askLocationPermissionIfNew } from "@/lib/devicePosition";
+import { DEFAULT_SERVER_URL } from "@/lib/native/defaultServer";
 import ServerAddressForm from "./ServerAddressForm";
 import { getSnapshot, loadSettings, markSetupDone, SERVER_SNAPSHOT, subscribe } from "@/lib/native/storage";
 
@@ -33,10 +34,11 @@ function FirstRun() {
         </span>
         <h1 className="mt-4 font-display text-2xl font-bold tracking-tight">Connect to the laptop</h1>
         <p className="mt-2 mb-6 text-sm text-ink-muted">
-          RescueNet&apos;s server runs on a laptop. Put this phone on the same WiFi (or the laptop&apos;s hotspot) and type
-          the laptop&apos;s address below. No internet is needed. The map and the guides work on this phone without it.
+          {DEFAULT_SERVER_URL
+            ? "This app was set up to use the address below. Check it and continue, or change it. The map and the guides work on this phone without any connection."
+            : "RescueNet's server runs on a laptop. Put this phone on the same WiFi (or the laptop's hotspot) and type the laptop's address below. No internet is needed. The map and the guides work on this phone without it."}
         </p>
-        <ServerAddressForm submitLabel="Save and continue">
+        <ServerAddressForm initialValue={DEFAULT_SERVER_URL} submitLabel="Save and continue">
           <button
             type="button"
             onClick={markSetupDone}

@@ -27,7 +27,7 @@ export async function GET(request) {
 
 // Only logged-in organizations may add shelters.
 export async function POST(request) {
-  const limited = rateLimit(request, "shelters");
+  const limited = await rateLimit(request, "shelters");
   if (limited) return limited;
 
   const user = await getCurrentUser();

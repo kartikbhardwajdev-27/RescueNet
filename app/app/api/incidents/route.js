@@ -59,7 +59,7 @@ export async function POST(request) {
     if (existing) return replay(existing, await getSessionUserId());
   }
 
-  const limited = rateLimit(request, "incidents");
+  const limited = await rateLimit(request, "incidents");
   if (limited) return limited;
 
   const body = await readJsonBody(request);

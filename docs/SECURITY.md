@@ -188,3 +188,25 @@ Play Protect warning, and the permission dialogs. See `docs/APK_SETUP.md`.
   location, and shelters' contact numbers. That is the point of the app, but a
   reporter can type personal details, and the app does not warn them.
 - **Capacity, status and reports are unverified** (see the About page).
+
+## Hosted deployment (Step 29)
+
+See `docs/DEPLOY.md` for the steps. What changes for security:
+
+- **Rate limits** are kept in MongoDB when the database is not on the same machine (a TTL-indexed
+  `ratelimits` collection, one counter per caller per window, ids are hashes, no address or e-mail
+  is stored), so they hold across Vercel's instances. Same limits as the in-memory ones on the
+  laptop. If the database is down the limiter lets the request through.
+- **Client address.** On Vercel the per-address limits use `x-vercel-forwarded-for` (set by the
+  platform). Elsewhere they use the last `x-forwarded-for` entry, which a client can forge when no
+  proxy of yours is in front: the per-address limits can then be dodged (the per-account login
+  limit cannot). Do not put another proxy in front of the app without checking this.
+- **Cookie** is `Secure` over https (Vercel) and plain over http (laptop). `COOKIE_SECURE=true|false`
+  forces it.
+- **Startup check** prints the names (never values) of missing `MONGODB_URI` / `JWT_SECRET`, and
+  says when `JWT_SECRET` is shorter than 32 characters (logins refuse to work with it).
+- **The hosted demo seed** needs `--hosted`, a typed database name, and your own `DEMO_PASSWORD`
+  (not the laptop default). The demo accounts share that password: remove them after a demo.
+- **Atlas**: a new cluster and a new database user limited to `readWrite` on one database;
+  network access is open to all addresses because Vercel has no fixed address, so the password
+  is the only gate.

@@ -291,3 +291,15 @@ the bundled map source, the location plugin) and **replaces** a few small websit
 files with Android versions that export the same things. The website's own versions
 of those files know nothing about the app, so no Android code can end up in the
 website. The header of `scripts/build-mobile.mjs` lists them.
+
+## Pointing the app at a hosted site (Step 29)
+
+To make an APK whose first screen already has the hosted address in it:
+
+```sh
+RESCUENET_SERVER_URL=https://your-site.vercel.app npm run apk
+```
+
+It is only a starting value: it can be changed on the first-run screen and on Settings, and an
+address saved on the phone wins. `https://` is accepted for any address; `http://` only for the
+local network. A badly formed value stops the build. See `docs/DEPLOY.md`.

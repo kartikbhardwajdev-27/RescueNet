@@ -18,7 +18,7 @@ const NO_STORE = { "Cache-Control": "no-store" };
 // person pressing twice cannot join twice. If the update matches nothing, the
 // event is read again only to say WHICH of those was the reason.
 export async function POST(request, { params }) {
-  const limited = rateLimit(request, "rsvp");
+  const limited = await rateLimit(request, "rsvp");
   if (limited) return limited;
 
   const user = await getCurrentUser();
@@ -63,7 +63,7 @@ export async function POST(request, { params }) {
 // Leave an event. Leaving one you never joined changes nothing (and is not an
 // error), so pressing it twice, or from two tabs, is harmless.
 export async function DELETE(request, { params }) {
-  const limited = rateLimit(request, "rsvp");
+  const limited = await rateLimit(request, "rsvp");
   if (limited) return limited;
 
   const user = await getCurrentUser();

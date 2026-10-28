@@ -27,7 +27,7 @@ async function loadOwnEvent(id, user) {
 // UPDATABLE_EVENT_FIELDS (lib/validation.js), never status, organizer or
 // attendees. A cancelled or finished event can't be edited.
 export async function PATCH(request, { params }) {
-  const limited = rateLimit(request, "updates");
+  const limited = await rateLimit(request, "updates");
   if (limited) return limited;
 
   const user = await getCurrentUser();
@@ -82,7 +82,7 @@ export async function PATCH(request, { params }) {
 // see that it was cancelled). Only the organization that posted it may. Cancelling
 // twice is fine and changes nothing.
 export async function DELETE(request, { params }) {
-  const limited = rateLimit(request, "updates");
+  const limited = await rateLimit(request, "updates");
   if (limited) return limited;
 
   const user = await getCurrentUser();

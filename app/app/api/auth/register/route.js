@@ -9,7 +9,7 @@ import User from "@/models/User";
 const BCRYPT_COST = 10;
 
 export async function POST(request) {
-  const limited = rateLimit(request, "register");
+  const limited = await rateLimit(request, "register");
   if (limited) return limited;
 
   // Fail before touching the database if the server can't issue tokens.

@@ -17,7 +17,7 @@ async function getDummyHash() {
 }
 
 export async function POST(request) {
-  const limited = rateLimit(request, "login");
+  const limited = await rateLimit(request, "login");
   if (limited) return limited;
 
   assertAuthConfigured();
@@ -36,7 +36,7 @@ export async function POST(request) {
   // The per-address limit above can be dodged by a client that lies about its
   // address, so guesses against one account are also counted by email.
   const email = normalizeEmail(body.email);
-  const limitedAccount = rateLimit(request, "loginAccount", { key: email.slice(0, 254) });
+  const limitedAccount = await rateLimit(request, "loginAccount", { key: email.slice(0, 254) });
   if (limitedAccount) return limitedAccount;
 
   await connectDB();

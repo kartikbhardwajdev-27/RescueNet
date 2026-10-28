@@ -1,6 +1,6 @@
 # RescueNet build plan
 
-Instructions for the `rescuenet-builder` agent. Follow this file exactly. Steps 1 to 26 are built. Do steps 27 and 28 in order, one at a time (a phone-sized navigation panel, then navigation to any pin).
+Instructions for the `rescuenet-builder` agent. Follow this file exactly. Steps 1 to 28 are built. Do steps 29 and 30 in order, one at a time (hosted-deploy readiness, then the hosted test checklist).
 
 ## How to work
 
@@ -11,13 +11,13 @@ Instructions for the `rescuenet-builder` agent. Follow this file exactly. Steps 
 5. Continue to the next step automatically only if the current step fully passed its verification. If a step fails twice, stop and report. Do not guess.
 6. When something is not specified, pick the simplest option and mention it in your report.
 7. After each step, report briefly: what you built, files changed, what you verified and how, what you could NOT verify, and anything Kartik must do by hand.
-8. After step 28, stop. Do not invent extra steps.
+8. After step 30, stop. Do not invent extra steps.
 
 ## Standing rules
 
 - Branch: `rebuild`. Never push to `main`.
 - Edit only inside `app/` and `docs/` (the repo root `docs/`). Never touch `client/` or `server/`.
-- Never edit `.gitignore`. Never commit `.env.local`, secrets, or the `.pmtiles` map file.
+- Never edit `.gitignore`. Never commit `.env.local`, secrets, or the `.pmtiles` map file. One-time exception (Step 29): `app/public/maps/tricity.pmtiles` (about 3.7 MB) is committed so the hosted deployment has a map.
 - Zero internet at runtime: no CDN, no Google Fonts, no external URLs, no analytics. Everything is bundled or served from this app. The only exception is the one-time road data download in Step 23 (`npm run routing:build`), which is a build-time script and never runs in the app.
 - UI style: dark theme, existing brand gradient, rounded cards, Space Grotesk and Inter (already bundled), `lucide-react` icons only.
 - Colour meaning: red = emergency and SOS only, green = safe and shelter, amber = warning, blue = information.
@@ -251,3 +251,24 @@ Verify: in headless Chrome at 360x740, 390x844 and 412x915 with a route active, 
 5. Update `docs/NAVIGATION.md` and `docs/TEST_CHECKLIST.md`.
 
 Verify: tests for an incident with another incident in the way, a resolved incident, an incident outside coverage, a destination inside its own zone, and a critical incident (confirmation shown). Rebuild with `npm run apk -- --offline`. After Step 28, stop.
+
+---
+
+## Step 29: Hosted-deploy readiness
+
+Goal of steps 29 and 30: deploy RescueNet to Vercel with a hosted MongoDB Atlas database, keeping the laptop mode working. Kartik deploys and creates the accounts; the builder does not.
+
+1. MongoDB connection that is safe on serverless: cached connection, small pool, short timeouts.
+2. Replace the in-memory rate limiter with a MongoDB-backed fixed-window limiter (TTL index) with the same limits. Keep the in-memory one for local runs. Take the client IP from the platform header Vercel sets, and document the spoofing caveat.
+3. Cookies: Secure when served over https and still working over plain http in laptop mode (a `COOKIE_SECURE` override is fine).
+4. One-time exception to the standing rule: commit `app/public/maps/tricity.pmtiles` so the deployment has the map. Check Range requests still work on a production build.
+5. A startup check that prints the names (never values) of missing env vars (`MONGODB_URI`, `JWT_SECRET`). Reject a `JWT_SECRET` shorter than 32 characters.
+6. `npm run demo:seed:hosted`: needs an explicit `--hosted` flag, a typed confirmation, and `DEMO_PASSWORD` from the environment (refuse a default password); it seeds only demo shelters and demo data.
+7. Android: `npm run apk` takes `RESCUENET_SERVER_URL` as the first-run default address (still editable on the Settings page). https addresses are allowed.
+8. Write `docs/DEPLOY.md` with exact dashboard steps. Atlas: a NEW cluster and a NEW database user (never reuse old ones), network access, where to copy the connection string. Vercel: import the repo, Root Directory `app`, production branch `rebuild`, env vars `MONGODB_URI` and `JWT_SECRET`. Post-deploy checks (`/api/health`, register, SOS, map).
+
+Verify: lint, build, the new limiter against a scratch database, and laptop mode still working. Commit and push, staging by explicit path.
+
+## Step 30: Hosted test checklist
+
+Add a hosted section to `docs/TEST_CHECKLIST.md`: install the web app over https on a phone, location, the APK pointed at the hosted URL, an airplane-mode queue test, and the rate limit across two requests. Commit and push, staging by explicit path. Report what could NOT be verified. After Step 30, stop.

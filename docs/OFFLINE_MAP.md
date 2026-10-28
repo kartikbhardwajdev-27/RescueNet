@@ -7,13 +7,14 @@ All paths below are relative to the `app/` folder.
 
 | File | What it is | In git? |
 | --- | --- | --- |
-| `public/maps/tricity.pmtiles` | Vector tiles for Chandigarh, Mohali and Panchkula (zoom 0-14, about 4 MB) | **No**, regenerate it (below) |
+| `public/maps/tricity.pmtiles` | Vector tiles for Chandigarh, Mohali and Panchkula (zoom 0-14, about 4 MB) | Yes, as a one-time exception for the hosted deployment (regenerate it below if needed) |
 | `public/map-assets/fonts/` | Glyph files for the four Noto Sans font stacks the basemap uses | Yes |
 | `public/map-assets/sprites/v4/dark*` | Icon sprite for the Protomaps "dark" theme | Yes |
 
-`tricity.pmtiles` must never be committed. It is **not** listed in `.gitignore`
-yet, so `git add -A` or `git add .` would stage it: add files by path, or add
-`app/public/maps/*.pmtiles` to `.gitignore` by hand.
+`tricity.pmtiles` is normally not committed, and `.gitignore` does not list it, so `git add -A`
+would stage it: add files by path. **One-time exception (Step 29): the 3.7 MB file IS committed,
+so the Vercel deployment has a map.** If you regenerate it, commit the new file the same way
+(`git add -f app/public/maps/tricity.pmtiles`).
 
 If `tricity.pmtiles` is missing the map still opens and the markers still work,
 but the page shows "Offline map tiles are missing" over a blank background.
