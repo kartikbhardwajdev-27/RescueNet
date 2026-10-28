@@ -10,6 +10,7 @@ import { formatDistance } from "@/lib/geo";
 import { incidentHref } from "@/lib/incidentLinks";
 import { mapHref } from "@/lib/mapFocus";
 import { formatRelativeTime, incidentTime } from "@/lib/time";
+import NavigateHereLink from "@/components/incidents/NavigateHereLink";
 import Icon from "./Icon";
 import { EmptyState, ErrorState, SkeletonRows } from "./states";
 import { toneClasses } from "./tones";
@@ -97,6 +98,7 @@ export default function NearbyCard({ shelters, incidents, place, className = "" 
                     </p>
                     <p className="text-xs text-ink-muted">{view.detail}</p>
                   </div>
+                  {item.kind === "incident" && <NavigateHereLink compact incidentId={item.id} label={view.title} />}
                   <Link
                     href={view.action.href}
                     aria-label={`${view.action.label}: ${view.title}`}

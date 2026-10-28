@@ -3,11 +3,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { watchDevicePosition } from "@/lib/devicePosition";
-import { buildGuidance, guidanceFor, resolveStartPoint } from "@/lib/nearest";
+import { buildGuidance, guidanceFor, incidentGuidance, resolveStartPoint } from "@/lib/nearest";
 import { getRoutingClient } from "@/lib/routing/client";
 import { initialRerouteState, nextRerouteState, progressOnRoute } from "@/lib/routing/follow";
 import { buildSteps } from "@/lib/routing/instructions";
-import { routeWarnings, routingCandidates } from "@/lib/routing/navigation";
+import {
+  incidentDestinationWarnings,
+  incidentNeedsConfirmation,
+  INCIDENT_ARRIVAL_NAME,
+  otherIncidents,
+  routeFailureCode,
+  routeWarnings,
+  routingCandidates,
+} from "@/lib/routing/navigation";
 import { zonesFromIncidents } from "@/lib/routing/zones";
 
 const PROFILE_KEY = "rescuenet-nav-profile";
@@ -23,7 +31,11 @@ function readProfile() {
 }
 
 // Road directions to a shelter: from "Navigate to nearest shelter" (mode "nearest") or
-// from the "Navigate" button of one shelter (mode "shelter").
+// from the "Navigate" button of one shelter (mode "shelter"), or to the nearest road to an
+// incident: from "Navigate here" on an incident (mode "incident"). For an incident the route
+// stops at the nearest road point (never at the incident itself), its own danger zone is not
+// penalised and not warned about (other incidents still count), and a high or critical active
+// incident first asks for a confirmation (`pendingConfirm`, `confirmPending`, `cancelPending`).
 //
 //   device     a location already known ({ lng, lat }) or null
 //   shelters   the shelter list, or null while it has not loaded (the saved list in
@@ -35,7 +47,7 @@ function readProfile() {
 //              "locating"       finding out where the person is
 //              "need-location"  no location from the device or the account ({ code })
 //              "none"           nearest mode, but no shelter is open with room
-//              "gone"           shelter mode, but that shelter is not in the list
+//              "gone"           shelter or incident mode, but it is not in the list
 //              "fallback"       road directions are not possible ({ code, from, source }):
 //                               the screen shows the straight-line guidance instead
 //              "ok"             a road route ({ route, steps, from, source, shelterId, tried })
@@ -47,7 +59,8 @@ export default function useNavigation({ device, shelters, incidents }) {
   const [savedLng, savedLat] = user?.location?.coordinates ?? [];
 
   const [profile, setProfileState] = useState(readProfile);
-  const [request, setRequest] = useState(null); // { id, mode: "nearest" | "shelter", shelterId }
+  const [request, setRequest] = useState(null); // { id, mode: "nearest" | "shelter" | "incident", shelterId, incidentId }
+  const [pendingConfirm, setPendingConfirm] = useState(null); // an incident waiting for "Continue"
   const [outcome, setOutcome] = useState(null);
   const [computing, setComputing] = useState(false);
   const [following, setFollowing] = useState(false);
@@ -82,7 +95,8 @@ export default function useNavigation({ device, shelters, incidents }) {
     const serial = (computeSerial.current += 1);
     setComputing(true);
     const { shelters: shelterList, incidents: incidentList } = latest.current;
-    const zones = zonesFromIncidents(incidentList);
+    // A trip to an incident does not avoid (or warn about) that incident's own zone.
+    const zones = zonesFromIncidents(asked.mode === "incident" ? otherIncidents(incidentList, asked.incidentId) : incidentList);
     const origin = { lat: from.lat, lon: from.lon };
     const start = { from: { lat: from.lat, lng: from.lon }, source };
     let next;
@@ -97,7 +111,16 @@ export default function useNavigation({ device, shelters, incidents }) {
           next =
             found.status === "ok"
               ? { status: "ok", route: found.best.route, shelterId: found.best.candidate.id, tried: found.tried }
-              : { status: "fallback", code: failureCode(found) };
+              : { status: "fallback", code: routeFailureCode(found) };
+        }
+      } else if (asked.mode === "incident") {
+        const incident = (incidentList ?? []).find((i) => String(i._id) === String(asked.incidentId));
+        if (!incident) {
+          next = { status: "gone" };
+        } else {
+          const [lng, lat] = incident.location.coordinates;
+          const route = await routing.route({ from: origin, to: { lat, lon: lng }, profile: chosen, zones });
+          next = route.status === "ok" ? { status: "ok", route, incidentId: String(incident._id), tried: [] } : { status: "fallback", code: routeFailureCode(route, "incident") };
         }
       } else {
         const shelter = (shelterList ?? []).find((s) => s._id === asked.shelterId);
@@ -106,7 +129,7 @@ export default function useNavigation({ device, shelters, incidents }) {
         } else {
           const [lng, lat] = shelter.location.coordinates;
           const route = await routing.route({ from: origin, to: { lat, lon: lng }, profile: chosen, zones });
-          next = route.status === "ok" ? { status: "ok", route, shelterId: shelter._id, tried: [] } : { status: "fallback", code: failureCode(route) };
+          next = route.status === "ok" ? { status: "ok", route, shelterId: shelter._id, tried: [] } : { status: "fallback", code: routeFailureCode(route) };
         }
       }
     } catch (error) {
@@ -115,7 +138,8 @@ export default function useNavigation({ device, shelters, incidents }) {
     if (serial !== computeSerial.current) return null; // a newer question took over
     if (next.status === "ok") {
       const shelter = (shelterList ?? []).find((s) => s._id === next.shelterId);
-      next = { ...next, steps: buildSteps(next.route, { destinationName: shelter?.name ?? "the shelter" }), profile: chosen };
+      const destinationName = asked.mode === "incident" ? INCIDENT_ARRIVAL_NAME : (shelter?.name ?? "the shelter");
+      next = { ...next, steps: buildSteps(next.route, { destinationName }), profile: chosen };
     }
     segmentRef.current = 0;
     const settled = { ...next, ...start };
@@ -150,9 +174,24 @@ export default function useNavigation({ device, shelters, incidents }) {
 
   const startNearest = useCallback(() => begin({ mode: "nearest", shelterId: null }), [begin]);
   const startTo = useCallback((shelter) => begin({ mode: "shelter", shelterId: shelter._id }), [begin]);
+  const startToIncident = useCallback((incident) => begin({ mode: "incident", incidentId: String(incident._id) }), [begin]);
+  // "Navigate here" on an incident: a high or critical active one asks first.
+  const askToNavigateToIncident = useCallback(
+    (incident) => {
+      if (incidentNeedsConfirmation(incident)) setPendingConfirm(incident);
+      else startToIncident(incident);
+    },
+    [startToIncident],
+  );
+  const confirmPending = useCallback(() => {
+    const incident = pendingConfirm;
+    setPendingConfirm(null);
+    if (incident) startToIncident(incident);
+  }, [pendingConfirm, startToIncident]);
+  const cancelPending = useCallback(() => setPendingConfirm(null), []);
   const retry = useCallback(() => {
     const asked = requestRef.current;
-    if (asked) begin({ mode: asked.mode, shelterId: asked.shelterId });
+    if (asked) begin({ mode: asked.mode, shelterId: asked.shelterId, incidentId: asked.incidentId });
   }, [begin]);
 
   const setProfile = useCallback(
@@ -176,6 +215,7 @@ export default function useNavigation({ device, shelters, incidents }) {
     pressCounter.current += 1;
     computeSerial.current += 1;
     originRef.current = null;
+    setPendingConfirm(null);
     setRequest(null);
     setOutcome(null);
     setComputing(false);
@@ -272,21 +312,37 @@ export default function useNavigation({ device, shelters, incidents }) {
   const route = outcome?.status === "ok" ? outcome.route : null;
   const steps = outcome?.status === "ok" ? outcome.steps : null;
   const destination = useMemo(() => {
+    if (request?.mode === "incident") return null;
     const id = outcome?.status === "ok" ? outcome.shelterId : request?.shelterId;
     return id ? ((shelters ?? []).find((s) => s._id === id) ?? null) : null;
   }, [outcome, request, shelters]);
-  const warnings = useMemo(
-    () => (route ? routeWarnings({ route, incidents: incidents ?? [], shelter: destination }) : []),
-    [route, incidents, destination],
+  // The incident being navigated to (incident mode only), kept up to date with the list.
+  const destinationIncident = useMemo(
+    () => (request?.mode === "incident" ? ((incidents ?? []).find((i) => String(i._id) === String(request.incidentId)) ?? null) : null),
+    [request, incidents],
   );
+  const warnings = useMemo(() => {
+    if (!route) return [];
+    if (request?.mode === "incident") {
+      // The destination's own zone and its own "passes an incident" warning are left out; other incidents still count.
+      return [...incidentDestinationWarnings(destinationIncident), ...routeWarnings({ route, incidents: otherIncidents(incidents, request.incidentId), shelter: null })];
+    }
+    return routeWarnings({ route, incidents: incidents ?? [], shelter: destination });
+  }, [route, incidents, destination, destinationIncident, request]);
 
   // Straight-line guidance for the fallback case (and for the dashed line on the map).
   const fallbackGuidance = useMemo(() => {
     if (outcome?.status !== "fallback") return null;
     const base = { from: outcome.from, source: outcome.source, incidents: incidents ?? [] };
+    if (request?.mode === "incident") return null;
     if (request?.mode === "nearest") return buildGuidance({ ...base, shelters: shelters ?? [] });
     return destination ? guidanceFor({ ...base, shelter: destination }) : null;
   }, [outcome, request?.mode, shelters, incidents, destination]);
+  // The same for an incident: a straight line and compass direction.
+  const incidentFallback = useMemo(
+    () => (outcome?.status === "fallback" && destinationIncident ? incidentGuidance({ from: outcome.from, source: outcome.source, incident: destinationIncident }) : null),
+    [outcome, destinationIncident],
+  );
 
   return {
     request,
@@ -303,23 +359,24 @@ export default function useNavigation({ device, shelters, incidents }) {
     route,
     steps,
     destination,
+    destinationIncident,
     warnings,
     fallbackGuidance,
+    incidentFallback,
+    pendingConfirm,
+    askToNavigateToIncident,
+    confirmPending,
+    cancelPending,
     // Changes with every press of a button and every change of Walk/Drive, but not when the
     // route is refreshed in the background: the map re-frames only for these.
     fitKey: request ? `${request.id}:${profile}` : null,
     startNearest,
     startTo,
+    startToIncident,
     retry,
     setProfile,
     clear,
     startFollowing,
     stopFollowing,
   };
-}
-
-// Why a failed answer from the router means "show the straight line instead".
-function failureCode(result) {
-  if (result.status === "outside-coverage") return result.where === "end" ? "outside-end" : "outside-start";
-  return "no-route";
 }

@@ -551,6 +551,18 @@ danger rings). Chrome at `http://localhost:3000/map`, location allowed.
 dots, **More tools**, **Sensors**, **Location**. Choose **Other** and type
 `30.7398` and `76.7827` (Sector 17). Pick **Location unavailable** to test refusal.
 
+## 15b. Navigate here to an incident (Step 28)
+
+Needs the demo data (`npm run demo:seed`). Do these on the laptop, then once in the Android app.
+
+1. Map: tap an incident marker. The popup has **Navigate here**. Tap it on a **low or medium active** incident: a route starts, the strip says "Nearest road to the incident", and a banner says "Active incident. Keep a safe distance. Call 112 if in danger". Open the directions: the full warning is there and the last step is "nearest road to the incident".
+2. Tap **Navigate here** on a **high or critical active** incident: a dialog asks "Navigate to an active incident?". **Cancel** starts nothing. Try again and **Continue**: the route starts.
+3. A **resolved** incident: no dialog, no warning.
+4. A flood or fire incident near you: the route reaches it without "No route avoids reported danger", but a different flood or fire in the way still shows that warning.
+5. From Home (Nearby, Recent activity) and Account (My reports) press **Navigate here**: each opens the map and behaves as above.
+6. Android app, airplane mode (after opening the app once with the server on): repeat steps 1 and 2. It should work from the saved lists.
+7. Not testable without a real incident in a field: the "more than 300 m from a road" message (checked only with a made-up incident and in unit tests).
+
 ## 15. Directions on the laptop (Steps 23 to 25)
 
 - [ ] **15.1 Navigate to nearest shelter.**

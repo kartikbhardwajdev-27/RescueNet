@@ -53,6 +53,18 @@ While a route is on screen the map is laid out like a navigation app, built for 
 
 The layout keeps the app's tab bar and the red SOS button reachable. The bars use the phone's safe-area insets (`--safe-area-inset-*`, which Capacitor injects, or `env(safe-area-inset-*)`) at the left, right and bottom. Today those are 0, because the app does not use `viewport-fit=cover` and Android pads the WebView itself.
 
+### Navigate here: to any incident (Step 28)
+
+Every incident has a **Navigate here** button: in its map popup, on the incident page, in **My reports**, and in Home's **Nearby** and **Recent activity** (they open `/map?navigate=incident:<id>`). It works in the Android app with the saved lists and the server off, like shelter navigation.
+
+- **The route stops at the nearest road, never at the incident.** The strip says "Nearest road to the incident" and the last step says "You have arrived at the nearest road to the incident". The incident's point is snapped to the nearest road within 300 m.
+- **More than 300 m from any mapped road:** no route. The panel says so and shows the straight-line distance and compass direction ("Straight-line distance, not a road route").
+- **Its own danger zone is ignored** for the route cost and for the "passes an active incident" warning, so you can reach the edge of a flood or fire you were asked to go to. **Other incidents still count**, with their x10 cost and warnings.
+- **Active incidents** (reported or in progress) show "This is an active incident. Keep a safe distance. If you are in danger, call 112." as a banner under the instruction card and in the directions. **High or critical** ones first ask "Navigate to an active incident?" (Cancel / Continue). **Resolved** incidents show no warning.
+- This does not tell you an incident is safe to approach. It only gets you to the nearest road.
+
+Checks: `npm run check:incident-nav` (38 checks: another incident in the way, resolved, outside coverage, a destination inside its own zone, the confirmation rule) and `npm run check:incident-phone -- http://localhost:3110` (63 checks in headless Chrome at three phone sizes).
+
 ### Checking the phone layout
 
 `docs/screenshots/step-27/` has the screenshots and the measurements for 360 x 740, 390 x 844 and 412 x 915 (what the strip and card measure, how much map is left, that nothing overlaps or is clipped). To measure it again:

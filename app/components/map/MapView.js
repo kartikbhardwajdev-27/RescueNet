@@ -21,9 +21,11 @@ import { describeLocationError, formatDistance, getCurrentLocation } from "@/lib
 import { parseFocus, parseNavigate } from "@/lib/mapFocus";
 import { limitPadding, safeFitBounds } from "@/lib/mapFraming";
 import { shelterWarnings } from "@/lib/nearest";
+import { INCIDENT_STOP_LABEL } from "@/lib/routing/navigation";
 import { getRoutingClient } from "@/lib/routing/client";
 import { zonesFromIncidents } from "@/lib/routing/zones";
 import { BottomControls, LoadFailed, MapUnavailable, TopNotices } from "./MapOverlays";
+import ConfirmNavigate from "@/components/navigation/ConfirmNavigate";
 import PopupCard from "./PopupCard";
 import {
   buildStyle,
@@ -85,8 +87,10 @@ export default function MapView() {
   const searchParams = useSearchParams();
   const focus = parseFocus(searchParams.get("focus"));
   const autoNearest = searchParams.get("nearest") === "1";
-  const navigateRaw = parseNavigate(searchParams.get("navigate"))?.raw ?? null;
-  const navigateId = parseNavigate(searchParams.get("navigate"))?.id ?? null;
+  const navigateTarget = parseNavigate(searchParams.get("navigate"));
+  const navigateRaw = navigateTarget?.raw ?? null;
+  const navigateKind = navigateTarget?.kind ?? null;
+  const navigateId = navigateTarget?.id ?? null;
   const focusRaw = focus?.raw ?? null;
   const focusKind = focus?.kind ?? null;
   const focusId = focus?.id ?? null;
@@ -472,7 +476,7 @@ export default function MapView() {
 
   // /map?nearest=1 (from the Shelters page) asks for directions to the nearest shelter once
   // the data is in; /map?navigate=shelter:<id> (the Navigate button on a shelter card) to that one.
-  const { startNearest, startTo } = navigation;
+  const { startNearest, startTo, askToNavigateToIncident } = navigation;
   useEffect(() => {
     if (!autoNearest || autoNearestRef.current || !mapInstance || !dataReady) return;
     autoNearestRef.current = true;
@@ -482,10 +486,16 @@ export default function MapView() {
   useEffect(() => {
     if (!navigateRaw || autoNavigateRef.current === navigateRaw || !mapInstance || !dataReady) return;
     autoNavigateRef.current = navigateRaw;
+    if (navigateKind === "incident") {
+      const incident = (incidents.data ?? []).find((record) => record._id === navigateId);
+      if (incident) askToNavigateToIncident(incident);
+      else if (incidentsLoaded) showToast("That incident isn't on the map any more", { kind: "error" });
+      return;
+    }
     const shelter = shelterList.find((record) => record._id === navigateId);
     if (shelter) startTo(shelter);
     else if (sheltersLoaded) showToast("That shelter isn't on the map any more", { kind: "error" });
-  }, [navigateRaw, navigateId, mapInstance, dataReady, shelterList, sheltersLoaded, startTo, showToast]);
+  }, [navigateRaw, navigateKind, navigateId, mapInstance, dataReady, shelterList, incidents.data, incidentsLoaded, sheltersLoaded, startTo, askToNavigateToIncident, showToast]);
 
   // ---- controls ----
 
@@ -638,11 +648,17 @@ export default function MapView() {
               onLocate={handleRoundLocate}
               locateLabel={locateLabel}
               locating={locating}
-              destinationLabel={navigation.destination?.name ?? "Shelter"}
+              destinationLabel={navigation.request?.mode === "incident" ? INCIDENT_STOP_LABEL : (navigation.destination?.name ?? "Shelter")}
               destinationWarning={navigation.destination ? warnings.get(navigation.destination._id) : undefined}
               incidentsKnown={incidents.data !== null}
-              onShowDetails={navigation.destination ? () => { setSheetFor(null); setSelected({ kind: "shelter", id: navigation.destination._id }); } : undefined}
-              detailsLabel="Shelter details"
+              onShowDetails={
+                navigation.destinationIncident
+                  ? () => { setSheetFor(null); setSelected({ kind: "incident", id: navigation.destinationIncident._id }); }
+                  : navigation.destination
+                    ? () => { setSheetFor(null); setSelected({ kind: "shelter", id: navigation.destination._id }); }
+                    : undefined
+              }
+              detailsLabel={navigation.destinationIncident ? "Incident details" : "Shelter details"}
             />
           ) : (
             <BottomControls
@@ -660,6 +676,8 @@ export default function MapView() {
         </>
       )}
 
+      {navigation.pendingConfirm && <ConfirmNavigate incident={navigation.pendingConfirm} onCancel={navigation.cancelPending} onContinue={navigation.confirmPending} />}
+
       {selectedRecord &&
         createPortal(
           <PopupCard
@@ -667,14 +685,11 @@ export default function MapView() {
             record={selectedRecord}
             warning={selected.kind === "shelter" ? warnings.get(selected.id) : undefined}
             now={popupSource.fetchedAt ?? 0}
-            onNavigate={
-              selected.kind === "shelter"
-                ? () => {
-                    setSelected(null);
-                    navigation.startTo(selectedRecord);
-                  }
-                : undefined
-            }
+            onNavigate={() => {
+              setSelected(null);
+              if (selected.kind === "shelter") navigation.startTo(selectedRecord);
+              else navigation.askToNavigateToIncident(selectedRecord);
+            }}
             onClose={closeSelected}
           />,
           popupEl,

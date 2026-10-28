@@ -9,6 +9,7 @@ import usePolledResource from "@/components/usePolledResource";
 import { fetchMyIncidents } from "@/lib/api";
 import { incidentHref } from "@/lib/incidentLinks";
 import { formatRelativeTime, incidentTime } from "@/lib/time";
+import NavigateHereLink from "./NavigateHereLink";
 import { SeverityBadge, StatusBadge } from "./IncidentBadges";
 import SosBadge from "./SosBadge";
 
@@ -45,10 +46,10 @@ export default function MyReports() {
             {list.slice(0, MAX_SHOWN).map((incident) => {
               const { label, icon: Icon, isSos } = incidentKindMeta(incident);
               return (
-                <li key={incident._id}>
+                <li key={incident._id} className="flex items-center gap-2">
                   <Link
                     href={incidentHref(incident._id)}
-                    className="group -mx-2 flex items-center gap-3 rounded-2xl px-2 py-3 transition-colors hover:bg-white/5"
+                    className="group -mx-2 flex min-w-0 flex-1 items-center gap-3 rounded-2xl px-2 py-3 transition-colors hover:bg-white/5"
                   >
                     <span
                       className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${isSos ? "bg-sos/20 text-sos-soft" : "bg-white/10"}`}
@@ -78,6 +79,7 @@ export default function MyReports() {
                       aria-hidden="true"
                     />
                   </Link>
+                  <NavigateHereLink compact incidentId={incident._id} label={label} />
                 </li>
               );
             })}

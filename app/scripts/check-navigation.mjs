@@ -18,7 +18,7 @@ import {
   stepAt,
 } from "../lib/routing/follow.js";
 import { haversineM } from "../lib/routing/geometry.js";
-import { navigateHref, parseNavigate } from "../lib/mapFocus.js";
+import { navigateHref, navigateIncidentHref, parseNavigate } from "../lib/mapFocus.js";
 import { guidanceFor } from "../lib/nearest.js";
 import { limitPadding, safeFitBounds } from "../lib/mapFraming.js";
 
@@ -279,9 +279,11 @@ check("fallback: outside coverage names the 300 m limit", [/300 m/.test(fallback
   near("every point is 200 m from the centre (nearest)", Math.min(...radii), 200, 1);
   near("every point is 200 m from the centre (furthest)", Math.max(...radii), 200, 1);
 }
-check("navigate links", [navigateHref("abc123"), parseNavigate("shelter:abc123"), parseNavigate("shelter:"), parseNavigate("incident:abc"), parseNavigate(null), parseNavigate("shelter:a b")], [
+check("navigate links", [navigateHref("abc123"), navigateIncidentHref("i9"), parseNavigate("shelter:abc123"), parseNavigate("incident:i9"), parseNavigate("shelter:"), parseNavigate("event:abc"), parseNavigate(null), parseNavigate("shelter:a b")], [
   "/map?navigate=shelter:abc123",
-  { id: "abc123", raw: "shelter:abc123" },
+  "/map?navigate=incident:i9",
+  { kind: "shelter", id: "abc123", raw: "shelter:abc123" },
+  { kind: "incident", id: "i9", raw: "incident:i9" },
   null,
   null,
   null,

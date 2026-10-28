@@ -8,6 +8,7 @@ import { incidentTypeMeta } from "@/components/incidentMeta";
 import { buildActivityItems } from "@/lib/dashboard";
 import { incidentHref } from "@/lib/incidentLinks";
 import { formatRelativeTime } from "@/lib/time";
+import NavigateHereLink from "@/components/incidents/NavigateHereLink";
 import { EmptyState, ErrorState, SkeletonRows } from "./states";
 import { toneClasses } from "./tones";
 
@@ -54,6 +55,9 @@ export default function ActivityCard({ incidents, className = "" }) {
                     </time>
                   </p>
                 </Link>
+                <div className="mt-1.5">
+                  <NavigateHereLink compact incidentId={item.id} label={item.title} />
+                </div>
               </li>
             ))}
           </ol>

@@ -13,6 +13,19 @@ function Pill({ tone, children }) {
   return <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${toneClasses(tone).badge}`}>{children}</span>;
 }
 
+function NavigateButton({ onClick, label }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-brand-gradient px-4 text-sm font-bold text-on-brand shadow-brand transition-all duration-150 hover:brightness-110 motion-safe:active:scale-95"
+    >
+      <Navigation className="size-4" aria-hidden="true" />
+      {label}
+    </button>
+  );
+}
+
 function Header({ icon, tone, title, pills, onClose }) {
   return (
     <div className="flex items-start gap-3">
@@ -33,7 +46,7 @@ function Header({ icon, tone, title, pills, onClose }) {
   );
 }
 
-function IncidentDetails({ incident, now, onClose }) {
+function IncidentDetails({ incident, now, onNavigate, onClose }) {
   const { label: typeLabel, icon: TypeIcon, isSos } = incidentKindMeta(incident);
   const severity = severityMeta(incident.severity);
   const status = incidentStatusMeta(incident.status);
@@ -73,6 +86,7 @@ function IncidentDetails({ incident, now, onClose }) {
           Reported {formatRelativeTime(incidentTime(incident), now)}
         </time>
       </p>
+      {onNavigate && <NavigateButton onClick={onNavigate} label="Navigate here" />}
     </>
   );
 }
@@ -117,16 +131,7 @@ function ShelterDetails({ shelter, warning, onNavigate, onClose }) {
           {shelter.contactPhone}
         </a>
       )}
-      {onNavigate && (
-        <button
-          type="button"
-          onClick={onNavigate}
-          className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-brand-gradient px-4 text-sm font-bold text-on-brand shadow-brand transition-all duration-150 hover:brightness-110 motion-safe:active:scale-95"
-        >
-          <Navigation className="size-4" aria-hidden="true" />
-          Navigate
-        </button>
-      )}
+      {onNavigate && <NavigateButton onClick={onNavigate} label="Navigate" />}
     </>
   );
 }
@@ -137,7 +142,7 @@ export default function PopupCard({ kind, record, warning, now, onNavigate, onCl
   return (
     <div className="w-[min(20rem,calc(100vw-3rem))] p-4">
       {kind === "incident" ? (
-        <IncidentDetails incident={record} now={now} onClose={onClose} />
+        <IncidentDetails incident={record} now={now} onNavigate={onNavigate} onClose={onClose} />
       ) : (
         <ShelterDetails shelter={record} warning={warning} onNavigate={onNavigate} onClose={onClose} />
       )}

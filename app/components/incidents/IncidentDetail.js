@@ -17,6 +17,7 @@ import { mapHref } from "@/lib/mapFocus";
 import { formatRelativeTime, incidentTime } from "@/lib/time";
 import { severityFromScore } from "@/lib/triage";
 import { PriorityBadge, SeverityBadge, StatusBadge } from "./IncidentBadges";
+import NavigateHereLink from "./NavigateHereLink";
 import { describeReasons } from "./priorityText";
 import SosBadge from "./SosBadge";
 
@@ -264,13 +265,16 @@ export default function IncidentDetail({ id }) {
           <IncidentMiniMap incident={incident} />
         </div>
 
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <NavigateHereLink incidentId={incident._id} label="this incident" />
         <Link
           href={mapHref("incident", incident._id)}
-          className="mt-4 inline-flex items-center gap-2 rounded-2xl border border-line-strong bg-white/5 px-4 py-2.5 text-sm font-bold transition-all duration-150 hover:bg-white/10 motion-safe:active:scale-95"
+          className="inline-flex items-center gap-2 rounded-2xl border border-line-strong bg-white/5 px-4 py-2.5 text-sm font-bold transition-all duration-150 hover:bg-white/10 motion-safe:active:scale-95"
         >
           <MapIcon className="size-4" aria-hidden="true" />
           View on map
         </Link>
+        </div>
 
         {isOrganization && <StatusControls incident={incident} onChanged={resource.refresh} />}
       </Card>

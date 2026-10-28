@@ -20,16 +20,17 @@ export function parseFocus(value) {
 
 // ---- navigation links ----
 //
-// /map?navigate=shelter:<id> opens the map and starts road directions to that
-// shelter (the "Navigate" button on a shelter card). /map?nearest=1 starts them to
-// the nearest open shelter with room.
+// /map?navigate=shelter:<id> or /map?navigate=incident:<id> opens the map and starts
+// road directions to that place (the "Navigate here" buttons). /map?nearest=1 starts
+// them to the nearest open shelter with room.
 
-const NAVIGATE_PATTERN = /^shelter:([\w-]{1,64})$/;
+const NAVIGATE_PATTERN = /^(shelter|incident):([\w-]{1,64})$/;
 
 export const navigateHref = (shelterId) => `/map?navigate=shelter:${shelterId}`;
+export const navigateIncidentHref = (incidentId) => `/map?navigate=incident:${incidentId}`;
 
-// "shelter:abc123" -> { id: "abc123", raw }, or null when missing or malformed.
+// "shelter:abc123" -> { kind: "shelter", id: "abc123", raw }, or null when missing or malformed.
 export function parseNavigate(value) {
   const match = NAVIGATE_PATTERN.exec(value ?? "");
-  return match ? { id: match[1], raw: value } : null;
+  return match ? { kind: match[1], id: match[2], raw: value } : null;
 }

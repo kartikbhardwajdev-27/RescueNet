@@ -139,6 +139,27 @@ export function guidanceFor({ from, source, shelter, incidents }) {
   };
 }
 
+// Straight-line guidance to one incident (the fallback when road directions are not possible,
+// for instance when the incident is more than 300 m from any mapped road).
+export function incidentGuidance({ from, source, incident }) {
+  const target = pointOf(incident);
+  const km = distanceKm(from, target);
+  const bearing = bearingDegrees(from, target);
+  return {
+    incident,
+    distanceKm: km,
+    bearing,
+    direction: km < SAME_PLACE_KM ? null : compassDirection(bearing),
+    from,
+    source,
+    target,
+    line: [
+      [from.lng, from.lat],
+      [target.lng, target.lat],
+    ],
+  };
+}
+
 // "850 m NE", "3.4 km SW", or "here" when the person is at the shelter.
 export function formatGuidance(km, direction, formatDistance) {
   return direction ? `${formatDistance(km)} ${direction}` : "right here";

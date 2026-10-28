@@ -117,6 +117,32 @@ export function routeWarnings({ route, incidents, shelter = null }) {
   return warnings;
 }
 
+// ---- navigating to an incident ("Navigate here" on an incident) ----
+
+// Active means someone may still be in danger there.
+export const isActiveIncident = (incident) => incident?.status === "reported" || incident?.status === "in_progress";
+
+// High and critical active incidents ask for a confirmation before the route starts.
+export const incidentNeedsConfirmation = (incident) => isActiveIncident(incident) && (incident.severity === "high" || incident.severity === "critical");
+
+// The route stops at the nearest road, never at the incident itself.
+export const INCIDENT_STOP_LABEL = "Nearest road to the incident";
+export const INCIDENT_ARRIVAL_NAME = "the nearest road to the incident";
+export const ACTIVE_INCIDENT_NOTE = "This is an active incident. Keep a safe distance. If you are in danger, call 112.";
+
+// Avoid zones and "passes an incident" warnings for a trip to `incident`: every incident except
+// the destination itself, so the route can reach its own zone but still avoids the others.
+export function otherIncidents(incidents, destinationId) {
+  return (incidents ?? []).filter((incident) => String(incident._id) !== String(destinationId));
+}
+
+// The warning shown in the panel for a destination incident: one entry (or none for a
+// resolved incident), in the same shape as routeWarnings.
+export function incidentDestinationWarnings(incident) {
+  if (!isActiveIncident(incident)) return [];
+  return [{ id: "active-incident", level: "warn", title: "This is an active incident", detail: ACTIVE_INCIDENT_NOTE }];
+}
+
 // 640 -> "1 min" ... "≈ 12 min", "≈ 1 h 5 min". Always starts with the ≈, because it is an estimate.
 export function formatDuration(seconds) {
   const minutes = Math.max(1, Math.round(seconds / 60));
@@ -138,6 +164,8 @@ export function fallbackMessage(code) {
       return `There is no mapped road within ${SNAP_LIMIT_M} m of your position, or you are outside Chandigarh, Mohali and Panchkula.`;
     case "outside-end":
       return `That shelter is more than ${SNAP_LIMIT_M} m from any mapped road.`;
+    case "outside-incident":
+      return `That incident is more than ${SNAP_LIMIT_M} m from any mapped road, so there is no road to route to.`;
     case "no-route":
       return "No road route was found between you and the shelter.";
     default:
@@ -156,4 +184,14 @@ export function circlePolygon(lat, lon, radiusM, points = 48) {
   }
   ring.push(ring[0]);
   return ring;
+}
+
+// Why a failed answer from the router means "show the straight line instead": the code
+// fallbackMessage understands. `kind` is "shelter" or "incident" (the end of the trip).
+export function routeFailureCode(result, kind = "shelter") {
+  if (result.status === "outside-coverage") {
+    if (result.where === "end") return kind === "incident" ? "outside-incident" : "outside-end";
+    return "outside-start";
+  }
+  return "no-route";
 }

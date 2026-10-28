@@ -24,6 +24,7 @@ function bannerFor({ following, rerouting, progress, followError, warnings }) {
   if (following && progress?.offRoute) return { id: "off-route", tone: "warn", text: "You are off the route", icon: MapPinOff };
   if (following && !progress) return { id: "waiting", tone: "info", text: "Waiting for your position…", spinner: true };
   if (warnings.some((w) => w.id === "no-safe-route")) return { id: "no-safe-route", tone: "warn", text: "No route avoids reported danger. Tap for details", icon: TriangleAlert, opensDirections: true };
+  if (warnings.some((w) => w.id === "active-incident")) return { id: "active-incident", tone: "warn", text: "Active incident. Keep a safe distance. Call 112 if in danger", icon: TriangleAlert, opensDirections: true };
   return null;
 }
 
