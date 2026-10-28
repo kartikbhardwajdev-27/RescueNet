@@ -1,4 +1,4 @@
-# RescueNet: hand-test checklist (Steps 10 to 26)
+# RescueNet: hand-test checklist (Steps 10 to 30)
 
 Everything you must try yourself, in the order that matters most for the demo.
 Tick a box only when you saw the expected result.
@@ -753,6 +753,122 @@ Android's location dialog and GPS. That is what you test here. Rebuild first wit
     account has a saved location, in which case directions start from that saved place and
     say so. Pressing **Start** with location denied says it could not follow your position.
   - **Stand-in: not run** (a desktop browser's permission, not Android's).
+
+## 17. The hosted site: Vercel and Atlas (Steps 29 and 30)
+
+**None of this has been run against a real Vercel or Atlas deployment**: the builder has no
+accounts and does not deploy. Do `docs/DEPLOY.md` first. Below, `https://YOUR-SITE` is your
+Vercel address. What I did check on the laptop (production build, scratch database): the
+Mongo-backed limiter (including two server processes sharing one count), Secure and plain
+cookies, Range requests (206) on `tricity.pmtiles`, the startup check, and the seed script's
+refusals. What I could not check is everything that depends on Vercel and Atlas themselves,
+https, a phone and the Android app: that is this section.
+
+- [ ] **17.1 The site is up and talks to Atlas.**
+  1. On any device open `https://YOUR-SITE/api/health`.
+  - **Expected:** `{"status":"ok","db":"connected"}`.
+  - **Automated check: passed on the laptop only** (same route, local database). **Not
+    verified at all** against Atlas.
+
+- [ ] **17.2 Register and stay logged in over https.**
+  1. Open `https://YOUR-SITE/register`, make a citizen account, then reload the page and open
+     Account.
+  - **Expected:** you stay logged in. In the browser's developer tools, Application, Cookies:
+    `rescuenet_token` is **Secure** and **HttpOnly**.
+  - **Automated check: passed on the laptop** (curl: `Secure` is set only when the request says it
+    came over https; plain http gets no `Secure`). **Not verified at all** on Vercel.
+
+- [ ] **17.3 Install the web app on a phone over https.**
+  1. On an Android phone open `https://YOUR-SITE` in Chrome. Wait for the page to load fully, then
+     Chrome's menu, **Install app** (or **Add to Home screen**).
+  2. Open it from the home screen icon.
+  - **Expected:** it opens full screen with the RescueNet icon and no address bar, and the
+    Map, Resources and Report pages open. (Over https the browser allows the service worker, which
+    plain `http://<LAN-IP>` does not.) On an iPhone: Safari, Share, **Add to Home Screen**.
+  - **Not verified at all** (no phone, no https site here).
+
+- [ ] **17.4 Location works over https.**
+  1. In the installed app (or Chrome) open the Map, press **My location**, allow location.
+  2. Press the red **SOS** button; allow location if asked; send an SOS.
+  - **Expected:** the blue dot appears where you are; the SOS says it was sent with your
+    position. Over https the browser asks for location, unlike plain http on the network.
+  - **Not verified at all.**
+
+- [ ] **17.5 The map comes from the site, not the internet.**
+  1. Open `https://YOUR-SITE/map` with developer tools (Network). Filter `pmtiles`.
+  - **Expected:** requests for `/maps/tricity.pmtiles` answer **206 Partial Content** with a small
+    size each; the tiles draw; no request goes to another website.
+  - **Automated check: passed on a production build on the laptop** (206 with `Content-Range`).
+    **Not verified at all** on Vercel (its CDN can change how ranges are served).
+
+- [ ] **17.6 Airplane mode: the queue.**
+  1. In the installed web app, load Home and the Map once while online.
+  2. Turn on **airplane mode**. Open **Report**, fill it in, send. Press **SOS**, send.
+  3. **Expected while offline:** the "Offline" banner, "queued" on the report, "SOS queued, will
+     send when connection returns". The Account page lists two queued items.
+  4. Turn airplane mode off. Wait up to a minute.
+  - **Expected:** both items change to sent, **exactly once each**, and appear in Home's Recent
+    activity. SOS goes first.
+  - **Automated check: passed on the laptop with the server stopped** (Step 11). **Not verified at
+    all** over the internet or on a phone.
+
+- [ ] **17.7 The APK pointed at the hosted site.**
+  1. On the laptop: `cd app && RESCUENET_SERVER_URL=https://YOUR-SITE npm run apk`. Install
+     `app/dist/RescueNet.apk` on the phone (`docs/APK_SETUP.md`).
+  2. Open the app for the first time.
+  - **Expected:** the first screen already shows `https://YOUR-SITE` in the address box. **Test**
+    says "Connected". Save and continue; log in with the account from 17.2; the Home screen shows
+    data from the hosted site.
+  3. Settings: change the address to a wrong one, Save, then back to the right one.
+  - **Expected:** both save (the box is editable); a `http://` address on the public internet is
+    refused with a message; the right one works again.
+  - **Automated check: passed** that the APK builds, contains the UI, map and road graph, and
+    that the default address is baked in (found in the exported JavaScript) and a bad
+    `RESCUENET_SERVER_URL` stops the build. **Not verified at all:** the app on a phone.
+
+- [ ] **17.8 The APK with airplane mode.**
+  1. With the APK logged in to the hosted site (17.7), turn on airplane mode.
+  2. Open the Map and Shelters; press SOS and send it; make a report.
+  - **Expected:** "Saved data from ..., not live" on the lists; the offline map draws; the SOS
+    and the report are queued; turn airplane mode off and both are sent once.
+  - **Not verified at all.**
+
+- [ ] **17.9 The rate limit across two requests (shared between instances).**
+  1. In a terminal, send 12 wrong logins in a row (change nothing between them):
+     ```sh
+     for i in $(seq 1 12); do curl -s -o /dev/null -w "$i: %{http_code}\n" -X POST https://YOUR-SITE/api/auth/login \
+       -H 'content-type: application/json' -H 'origin: https://YOUR-SITE' \
+       -d '{"email":"nobody'$i'@example.com","password":"wrong-password-1"}'; done
+     ```
+  - **Expected:** `401` for the first 10, then `429` ("Too many requests"). Vercel may serve
+    each request from a different server instance; the count is still shared because it lives in
+    Atlas, so the 11th is refused whichever instance answers.
+  2. In Atlas, Browse Collections, `rescuenet.ratelimits`: a few small documents appear
+     (a hashed `_id`, a `count`, an `expiresAt`), and they disappear within a few minutes after the
+     window (15 minutes for login) ends. No address or e-mail is in them.
+  3. Wait for the window to end and try again: `401` again, not `429`.
+  - **Automated check: passed on the laptop** (two `next start` processes alternating requests
+    against one scratch database: the 11th request got `429` from either). **Not verified at
+    all** on Vercel, and not verified that the TTL cleanup runs on Atlas.
+  - Your own address is counted, so test from your own network. If you are behind a shared
+    WiFi, others on it share the count.
+
+- [ ] **17.10 The demo seed against the hosted database (optional).**
+  1. Follow `docs/DEPLOY.md` section 5.
+  - **Expected:** the script refuses without `--hosted`, with a missing, short or default
+    `DEMO_PASSWORD`, and with a wrong database name typed; with the right one it adds the demo
+    shelters, accounts, incidents and events, and the site shows them.
+  - **Automated check: passed for the refusals** (all of them). **Not run:** a real write to Atlas
+    (the same code is what `npm run demo:seed` runs on the laptop, which passed).
+
+- [ ] **17.11 The laptop still works.**
+  1. `cd app && npm run build && npm run start:lan`, open the printed address on the laptop and a
+     phone on the same WiFi.
+  - **Expected:** exactly as before: login works over plain http, the map and navigation work.
+    Nothing in `.env.local` needs changing.
+  - **Automated check: passed** (production build on a spare port, local database: health,
+    register over http gives a cookie without `Secure`, the memory limiter answers `429` on the
+    11th wrong login, no `ratelimits` collection is created).
 
 ## What I audited in Steps 23 to 26
 
