@@ -975,3 +975,18 @@ Nothing. Steps 14 to 18 are built, verified as described above, committed and pu
   your test incidents (your database still has exactly the 3 incidents, 2 accounts and 6
   shelters it had). Every test I ran created data with a marker, in your database or in a
   scratch one, and I deleted it afterwards.
+
+## Hosted website offline test (Step 32)
+
+On a phone or laptop, over https, in a normal (not private) window:
+
+1. Open the site while online. Wait for "Offline ready ✓ (saved <time>)" (phone: under the top bar for 10 s; desktop: bottom of the sidebar). On the map you should also see "Map saved". If you see "Not ready for offline use", tap Retry and read the reason.
+2. Switch to airplane mode (or WiFi and mobile data off).
+3. Reload Home, Map, Shelters, Events, Report, Resources, About and an incident you opened. Each should open, with "Saved data from <time>, not live" on the lists. The map should show roads, labels and markers.
+4. Open Shelters, tap Navigate: a walking route should be drawn with no connection.
+5. Make a report and an SOS. Both say "queued". Switch the connection back on: each arrives once.
+6. Log out, then check the site's saved lists are gone (they come back after the next online visit).
+7. Open the site in a private window with no connection: only the browser's own error, since nothing has ever been saved there.
+
+Automatic version: `npm run build`, then `node scripts/browser/check-offline-web.mjs` (stops and restarts a local server to cut the connection for real).
+
