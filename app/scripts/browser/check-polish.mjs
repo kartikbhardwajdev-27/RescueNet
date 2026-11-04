@@ -105,7 +105,10 @@ const parts = {
       await page.send("Emulation.setFocusEmulationEnabled", { enabled: true });
       const before = page.requests.length;
       await page.goto(`${base}/report`, { waitMs: 2500 });
-      ok("lazy: no map code or tiles before the button is used", !page.requests.slice(before).some((u) => /tricity\.pmtiles|maplibre/.test(u)));
+      // Step 32: on the website the offline manager downloads the whole map file once (a single plain request) in the background; that is
+      // the only pmtiles request allowed here. Map code and tile (range) reads still wait for the button.
+      const seen = page.requests.slice(before);
+      ok("lazy: no map code or tiles before the button is used", !seen.some((u) => /maplibre/.test(u)) && seen.filter((u) => /tricity\.pmtiles/.test(u)).length <= 1, `${seen.filter((u) => /tricity\.pmtiles/.test(u)).length} map file request(s)`);
       ok("Pick on map button >= 44px", await page.eval(`(() => { const b = [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Pick on map'); const r = b?.getBoundingClientRect(); return !!r && r.height >= 43.5; })()`));
       await openPicker();
       ok("map modal opens with a canvas", true);
