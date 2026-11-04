@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { CircleHelp, LoaderCircle, MapPin } from "lucide-react";
+import { useCallback, useState } from "react";
+import dynamic from "next/dynamic";
+import { CircleHelp, LoaderCircle, Map as MapIcon, MapPin } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { FormAlert, Field, SubmitButton, TextInput, inputClass } from "@/components/auth/formUi";
 import Card from "@/components/Card";
@@ -13,6 +14,9 @@ import { INCIDENT_SEVERITIES, INCIDENT_TYPES, MAX_DESCRIPTION_LENGTH } from "@/l
 import { submitToOutbox } from "@/lib/outbox";
 import ReportConfirmation from "./ReportConfirmation";
 import SuggestedPriority from "./SuggestedPriority";
+
+// The map (MapLibre and the offline tiles) is only fetched when someone taps "Pick on map".
+const PickLocationModal = dynamic(() => import("./PickLocationModal"), { ssr: false });
 
 const SEVERITY_HELP = {
   low: "Minor. Nobody is in immediate danger.",
@@ -76,6 +80,8 @@ export default function ReportForm() {
   const [locationNote, setLocationNote] = useState(null);
   // The outbox item of a report that was saved but not delivered yet.
   const [queuedId, setQueuedId] = useState(null);
+  const [picking, setPicking] = useState(false);
+  const closePicker = useCallback(() => setPicking(false), []);
 
   function setField(name, value) {
     setValues((v) => ({ ...v, [name]: value }));
@@ -88,6 +94,22 @@ export default function ReportForm() {
   }
 
   const handleChange = (event) => setField(event.target.name, event.target.value);
+
+  // The point the fields currently describe, or null if they are empty or not valid numbers.
+  function currentPoint() {
+    const lat = values.lat.trim();
+    const lng = values.lng.trim();
+    if (!DECIMAL.test(lat) || !DECIMAL.test(lng)) return null;
+    if (Math.abs(Number(lat)) > 90 || Math.abs(Number(lng)) > 180) return null;
+    return { lat: Number(lat), lng: Number(lng) };
+  }
+
+  function handlePicked({ lat, lng }) {
+    setValues((v) => ({ ...v, lat: String(lat), lng: String(lng) }));
+    setErrors((e) => ({ ...e, lat: undefined, lng: undefined, location: undefined }));
+    setLocationNote({ kind: "ok", text: "Location set from the map." });
+    setPicking(false);
+  }
 
   async function handleUseLocation() {
     setLocating(true);
@@ -245,7 +267,7 @@ export default function ReportForm() {
               type="button"
               onClick={handleUseLocation}
               disabled={locating}
-              className="flex items-center gap-2 rounded-2xl border border-line-strong bg-white/5 px-4 py-2.5 text-sm font-semibold transition-all duration-150 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-70 motion-safe:active:scale-95"
+              className="flex min-h-11 items-center gap-2 rounded-2xl border border-line-strong bg-white/5 px-4 py-2.5 text-sm font-semibold transition-all duration-150 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-70 motion-safe:active:scale-95"
             >
               {locating ? (
                 <LoaderCircle className="size-4 motion-safe:animate-spin" aria-hidden="true" />
@@ -263,7 +285,17 @@ export default function ReportForm() {
               </p>
             )}
 
-            <p className="mt-5 mb-3 text-xs font-semibold tracking-wide text-ink-muted uppercase">Or enter coordinates</p>
+            <div className="mt-5 mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+              <p className="text-xs font-semibold tracking-wide text-ink-muted uppercase">Or enter coordinates</p>
+              <button
+                type="button"
+                onClick={() => setPicking(true)}
+                className="flex min-h-11 items-center gap-2 rounded-2xl border border-line-strong bg-white/5 px-4 py-2.5 text-sm font-semibold transition-all duration-150 hover:bg-white/10 motion-safe:active:scale-95"
+              >
+                <MapIcon className="size-4" aria-hidden="true" />
+                Pick on map
+              </button>
+            </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <TextInput
                 id="report-lat"
@@ -288,6 +320,7 @@ export default function ReportForm() {
                 error={errors.lng}
               />
             </div>
+            {picking && <PickLocationModal initial={currentPoint()} onUse={handlePicked} onClose={closePicker} />}
             {locationError && (
               <p className="mt-3 text-sm font-medium text-warn" role="alert">
                 {locationError}

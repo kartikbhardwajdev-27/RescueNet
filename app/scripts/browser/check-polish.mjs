@@ -89,6 +89,112 @@ async function reportRows(label, rowSel) {
 }
 
 const parts = {
+  async D() {
+    const rectOf = (sel) => `(() => { const e = document.querySelector(${JSON.stringify(sel)}); if (!e) return null; const r = e.getBoundingClientRect(); return { left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height }; })()`;
+    const coords = () => page.eval(`(() => { const t = document.querySelector('[data-testid=pick-coords]')?.textContent ?? ''; const m = /Latitude ([-\\d.]+), longitude ([-\\d.]+)/.exec(t); return m ? { lat: Number(m[1]), lng: Number(m[2]) } : null; })()`);
+    const fields = () => page.eval(`({ lat: document.getElementById('report-lat').value, lng: document.getElementById('report-lng').value })`);
+    const mouse = (type, x, y) => page.send("Input.dispatchMouseEvent", { type, x, y, button: type === "mouseMoved" ? "none" : "left", buttons: type === "mouseReleased" ? 0 : 1, clickCount: 1 });
+    const click = async (x, y) => { await mouse("mouseMoved", x, y); await mouse("mousePressed", x, y); await mouse("mouseReleased", x, y); await sleep(250); };
+    const setField = async (id, value) => { await page.eval(`(() => { const e = document.getElementById(${JSON.stringify(id)}); const set = Object.getOwnPropertyDescriptor(e.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype, 'value').set; set.call(e, ${JSON.stringify(value)}); e.dispatchEvent(new Event('input', { bubbles: true })); })()`); };
+    const clickText = (text) => page.eval(`(() => { const b = [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === ${JSON.stringify(text)}); if (!b) return false; b.click(); return true; })()`);
+    const openPicker = async () => { await clickText("Pick on map"); await page.waitFor(`document.querySelector('[data-testid=pick-map] canvas')`, 20000); await sleep(1500); };
+    const near = (a, b, tol) => Math.abs(a - b) <= tol;
+    for (const [w, h] of SIZES) {
+      tag = `D ${w}x${h}`;
+      await resize(w, h);
+      await page.send("Emulation.setFocusEmulationEnabled", { enabled: true });
+      const before = page.requests.length;
+      await page.goto(`${base}/report`, { waitMs: 2500 });
+      ok("lazy: no map code or tiles before the button is used", !page.requests.slice(before).some((u) => /tricity\.pmtiles|maplibre/.test(u)));
+      ok("Pick on map button >= 44px", await page.eval(`(() => { const b = [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Pick on map'); const r = b?.getBoundingClientRect(); return !!r && r.height >= 43.5; })()`));
+      await openPicker();
+      ok("map modal opens with a canvas", true);
+      const box = await page.eval(rectOf("[data-testid=pick-map]"));
+      const dlg = await page.eval(rectOf("[data-testid=pick-location]"));
+      ok("sheet fits inside the screen", dlg.left >= -1 && dlg.top >= -1 && dlg.right <= w + 1 && dlg.bottom <= h + 1, `${Math.round(dlg.width)}x${Math.round(dlg.height)}`);
+      ok("map is at least 40% of the screen height", box.height >= h * 0.4, `${Math.round(box.height)} of ${h}`);
+      if (w <= 412) {
+        const nav = await page.eval(`(() => { const n = document.querySelector('nav[aria-label], nav'); const all = [...document.querySelectorAll('nav')].map((n) => n.getBoundingClientRect()).filter((r) => r.height > 0 && r.top > 300); return all[0] ? { top: all[0].top } : null; })()`);
+        ok("bottom tab bar (SOS) stays visible below the sheet", !nav || dlg.bottom <= nav.top + 1, nav ? `sheet bottom ${Math.round(dlg.bottom)}, nav top ${Math.round(nav.top)}` : "no nav found");
+      }
+      ok("Close, title and Use this location are not covered by anything (hit test)", await page.eval(`(() => { const d = document.querySelector('[data-testid=pick-location]'); const els = [d.querySelector('button[aria-label="Close the map"]'), d.querySelector('h2'), [...d.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Use this location')]; return els.every((e) => { const r = e.getBoundingClientRect(); const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return hit && (e === hit || e.contains(hit)); }); })()`));
+      ok("Use this location disabled until a point exists", await page.eval(`[...document.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Use this location').disabled`));
+      const cx = box.left + box.width / 2, cy = box.top + box.height / 2;
+      // 1. click at the centre: no device location (denied) so the view starts on 30.65, 76.80 at zoom 12
+      await click(cx, cy);
+      let c = await coords();
+      ok("click at the centre gives the default centre (30.65, 76.80)", !!c && near(c.lat, 30.65, 0.003) && near(c.lng, 76.8, 0.003), c ? `${c.lat}, ${c.lng}` : "no coords");
+      // 2. marker sits where we clicked; 100 px east = ~0.0172 deg at zoom 12 (360 / (512 * 2^12) per px)
+      await click(cx + 100, cy);
+      const c2 = await coords();
+      ok("100 px east is about 0.0172 deg of longitude (zoom 12, 512 px tiles)", !!c2 && near(c2.lng - c.lng, 0.0172, 0.002) && near(c2.lat, c.lat, 0.002), c2 ? `${(c2.lng - c.lng).toFixed(4)}` : "");
+      const m = await page.eval(rectOf(".maplibregl-marker"));
+      ok("marker is drawn at the clicked point", !!m && near((m.left + m.right) / 2, cx + 100, 4) && near(m.bottom, cy, 10), m ? `marker x ${Math.round((m.left + m.right) / 2)} y ${Math.round(m.bottom)} vs ${Math.round(cx + 100)},${Math.round(cy)}` : "no marker");
+      await page.screenshot(path.join(SHOTS, `D-picker-${w}.png`));
+      // 3. drag the marker 60 px right and 40 px down
+      const mx = (m.left + m.right) / 2, my = (m.top + m.bottom) / 2;
+      await mouse("mouseMoved", mx, my); await mouse("mousePressed", mx, my);
+      for (let i = 1; i <= 8; i += 1) { await mouse("mouseMoved", mx + (60 * i) / 8, my + (40 * i) / 8); await sleep(30); }
+      await mouse("mouseReleased", mx + 60, my + 40); await sleep(300);
+      const c3 = await coords();
+      ok("dragging the marker updates the coordinates", !!c3 && near(c3.lng - c2.lng, 0.0103, 0.002) && c3.lat < c2.lat, c3 ? `d lng ${(c3.lng - c2.lng).toFixed(4)}, d lat ${(c3.lat - c2.lat).toFixed(4)}` : "");
+      const m3 = await page.eval(rectOf(".maplibregl-marker"));
+      ok("marker moved with the drag", near((m3.left + m3.right) / 2, mx + 60, 5) && near((m3.top + m3.bottom) / 2, my + 40, 5));
+      // 4. Use this location fills the fields and closes the sheet
+      await clickText("Use this location");
+      await sleep(300);
+      const f = await fields();
+      ok("sheet closed", !(await page.eval(`!!document.querySelector('[data-testid=pick-location]')`)));
+      ok("fields filled with the picked point", Number(f.lat) === c3.lat && Number(f.lng) === c3.lng, `${f.lat}, ${f.lng}`);
+      // 5. typing coordinates moves the marker (the pin starts at the fields' point, centred)
+      await setField("report-lat", "30.7398"); await setField("report-lng", "76.7827");
+      await openPicker();
+      const box5 = await page.eval(rectOf("[data-testid=pick-map]"));
+      const m5 = await page.eval(rectOf(".maplibregl-marker"));
+      const c5 = await coords();
+      ok("typed coordinates are shown in the picker", !!c5 && c5.lat === 30.7398 && c5.lng === 76.7827);
+      ok("marker moved to the typed point (map centred on it)", !!m5 && near((m5.left + m5.right) / 2, box5.left + box5.width / 2, 5) && near(m5.bottom, box5.top + box5.height / 2, 10));
+      ok("inside the offline area: no outside note", !(await page.eval(`!!document.querySelector('[data-testid=pick-outside]')`)));
+      // Escape closes without changing the fields
+      await page.send("Input.dispatchKeyEvent", { type: "keyDown", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 });
+      await sleep(300);
+      ok("Escape closes the sheet and leaves the fields alone", !(await page.eval(`!!document.querySelector('[data-testid=pick-location]')`)) && (await fields()).lat === "30.7398");
+      // 6. outside the offline map: a note, but still allowed
+      await setField("report-lat", "28.6139"); await setField("report-lng", "77.209");
+      await openPicker();
+      ok("outside the map area shows a note", await page.eval(`!!document.querySelector('[data-testid=pick-outside]')`));
+      ok("...and Use this location is still enabled", !(await page.eval(`[...document.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Use this location').disabled`)));
+      await clickText("Use this location"); await sleep(300);
+      const fo = await fields();
+      ok("outside point accepted into the fields", fo.lat === "28.6139" && fo.lng === "77.209");
+      // 7. submit sends the picked point (the request is answered by the page, nothing is stored)
+      await page.eval(`(() => { window.__sent = null; const real = window.fetch; window.fetch = async (input, init) => { const url = typeof input === 'string' ? input : input.url; if (/\\/api\\/incidents(\\?|$)/.test(url) && init?.method === 'POST') { window.__sent = JSON.parse(init.body); return new Response(JSON.stringify({ id: '64b000000000000000000001' }), { status: 201, headers: { 'content-type': 'application/json' } }); } return real(input, init); }; })()`);
+      await openPicker();
+      const box7 = await page.eval(rectOf("[data-testid=pick-map]"));
+      await click(box7.left + box7.width / 2 + 40, box7.top + box7.height / 2 + 40);
+      const c7 = await coords();
+      await clickText("Use this location"); await sleep(300);
+      await page.eval(`document.querySelector('input[name=type][value=fire], input[type=radio]')?.click()`);
+      await setField("report-description", "Check: picked point goes out with the report");
+      await page.eval(`document.querySelector('form button[type=submit]').click()`);
+      await page.waitFor(`window.__sent`, 10000);
+      const sent = await page.eval(`window.__sent`);
+      ok("submit sends the picked point", !!sent && sent.location.lat === c7.lat && sent.location.lng === c7.lng, sent ? `${sent.location.lat}, ${sent.location.lng}` : "nothing sent");
+      // 8. the picker is the same as before for a device with location: it starts on the person
+      await page.send("Browser.grantPermissions", { origin: new URL(base).origin, permissions: ["geolocation"] }).catch(() => {});
+      await page.send("Emulation.setGeolocationOverride", { latitude: 30.7398, longitude: 76.7827, accuracy: 20 });
+      await page.goto(`${base}/report`, { waitMs: 2500 });
+      await openPicker(); await sleep(1500);
+      const box8 = await page.eval(rectOf("[data-testid=pick-map]"));
+      await click(box8.left + box8.width / 2, box8.top + box8.height / 2);
+      const c8 = await coords();
+      ok("with a device location the picker starts centred on it", !!c8 && near(c8.lat, 30.7398, 0.0015) && near(c8.lng, 76.7827, 0.0015), c8 ? `${c8.lat}, ${c8.lng}` : "no coords");
+      await page.send("Emulation.clearGeolocationOverride").catch(() => {});
+      await page.send("Browser.resetPermissions", {}).catch(() => {});
+      const external = page.requests.filter((u) => /^https?:/.test(u) && new URL(u).origin !== new URL(base).origin);
+      ok("no request left this origin", external.length === 0, external.slice(0, 2).join(" "));
+    }
+  },
   async C() {
     const count = `document.querySelectorAll('[data-toast]').length`;
     const clickRsvp = `(() => { const b = [...document.querySelectorAll('[data-event-id] button')].find((x) => /(Join|Leave)/.test(x.textContent.trim()) && !x.disabled); if (!b) return null; b.click(); return b.textContent.trim(); })()`;
