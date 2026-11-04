@@ -228,7 +228,16 @@ async function getJson(path, { signal } = {}) {
 }
 
 export const fetchStats = (options) => getJson("/api/stats", options);
-export const fetchIncident = (id, options) => getJson(`/api/incidents/${encodeURIComponent(id)}`, options);
+// One incident. When the server cannot be reached, it is looked up in the saved
+// incidents list (lib/savedData.js), so an incident opened from a list still opens
+// offline; `savedAt` then says when that copy was saved.
+export async function fetchIncident(id, options) {
+  const result = await getJson(`/api/incidents/${encodeURIComponent(id)}`, options);
+  if (result.ok || result.kind !== "network") return result;
+  const saved = await recallResponse("/api/incidents?limit=200");
+  const found = Array.isArray(saved?.data) ? saved.data.find((incident) => incident?._id === id || incident?.id === id) : null;
+  return found ? { ok: true, data: found, savedAt: saved.savedAt } : result;
+}
 // The logged-in person's own reports (401 when logged out).
 export const fetchEvents = (options) => getJson("/api/events?limit=200", options);
 // { hosting, joined } for the logged-in person (401 when logged out).

@@ -3,7 +3,7 @@
 import { useCallback, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { ArrowLeft, CalendarClock, CircleCheck, Hash, Lightbulb, Map as MapIcon, MapPin, Play, SearchX, UserRound } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import Card from "@/components/Card";
@@ -16,6 +16,7 @@ import { fetchIncident, incidentReference, updateIncidentStatus } from "@/lib/ap
 import { mapHref } from "@/lib/mapFocus";
 import { formatRelativeTime, incidentTime } from "@/lib/time";
 import { severityFromScore } from "@/lib/triage";
+import SavedDataBanner from "@/components/SavedDataBanner";
 import { PriorityBadge, SeverityBadge, StatusBadge } from "./IncidentBadges";
 import NavigateHereLink from "./NavigateHereLink";
 import { describeReasons } from "./priorityText";
@@ -170,8 +171,15 @@ function StatusControls({ incident, onChanged }) {
 // One incident: what it is, where, when, its status, and (for organizations)
 // the buttons to change the status. Shows only what the record holds: there is
 // no history of status changes, so none is drawn.
-export default function IncidentDetail({ id }) {
+export default function IncidentDetail({ id: routeId }) {
   const { user, loading: authLoading } = useAuth();
+  // The website saves a copy of this page for offline use, and an incident that was
+  // never opened is shown from the saved page of another one (public/sw.js), whose
+  // id is not this one's. The address always has the right id.
+  const pathname = usePathname();
+  const fromAddress = pathname?.match(/^\/incidents\/([^/]+)\/?$/)?.[1];
+  // (The Android app's /incidents/view?id=... page passes its id in and has no id in the path.)
+  const id = fromAddress && fromAddress !== "view" ? decodeURIComponent(fromAddress) : routeId;
   const fetcher = useCallback((options) => fetchIncident(id, options), [id]);
   const resource = usePolledResource(fetcher);
   const incident = resource.data;
@@ -200,6 +208,7 @@ export default function IncidentDetail({ id }) {
   return (
     <>
       <BackButton />
+      <SavedDataBanner savedAt={resource.savedAt} className="mb-4 max-w-2xl" />
       <Card lift={false} className="max-w-2xl">
         <div className="flex items-start gap-4">
           <span
