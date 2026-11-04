@@ -78,6 +78,10 @@ function connect(url, id, port) {
     id,
     logs,
     requests,
+    // Calls fn(message) for every DevTools protocol event and response.
+    on(fn) {
+      listeners.push(fn);
+    },
     async ready() {
       await opened;
       await page.send("Page.enable");
