@@ -1,6 +1,6 @@
 # RescueNet build plan
 
-Instructions for the `rescuenet-builder` agent. Follow this file exactly. Steps 1 to 30 are built. Do step 31 (pre-demo polish), one part at a time.
+Instructions for the `rescuenet-builder` agent. Follow this file exactly. Steps 1 to 31 are built. Step 32 (offline website) is done on its own branch, `offline-web`.
 
 ## How to work
 
@@ -288,3 +288,20 @@ Four small UI fixes. Change nothing outside what is listed, and do not touch API
 **D. Pick the location on a map (Report page).** Next to the coordinates add a "Pick on map" button that opens a map (modal or sheet on phones) using the existing offline MapLibre and local PMTiles. Tap or click places a draggable marker; show the coordinates and a "Use this location" button. Start centred on the user's location, or on 30.65, 76.80 at zoom 12. Keep "Use my location" and the manual fields, all three in sync both ways. If the point is outside the offline map area, show a short note but still allow it. Load lazily (`next/dynamic`, `ssr: false`). Submit and offline-queue behaviour must not change. No external requests. If this cannot be made reliable, say so and leave it out.
 
 Verify each part in headless Chrome at 360x740, 390x844 and 412x915: A and B with `getBoundingClientRect` (no overlaps, no clipping, text column at least 50% of the row), C with timers, D (click sets coordinates, drag updates them, typing moves the marker, submit sends the picked point). Run lint, build, the existing check scripts (including `check:mobile`) and `npm run build:mobile`. Report what could NOT be verified. After Step 31, stop.
+
+---
+
+## Step 32: Offline website (branch `offline-web`)
+
+This step overrides the branch rule: work on a NEW branch `offline-web` created from `rebuild`. Do not touch `main` or `rebuild`. Small commits, staged by explicit path.
+
+Goal: the HOSTED website (https, Vercel) keeps working with no internet after one online visit, like the Android app: saved incidents, shelters, events and stats; the map; the road graph; the report and SOS queue. Reuse the saved-data layer, the PMTiles source and the outbox from Steps 11, 20 and 21, and enable them for the web build. Change no API, auth, data model or demo data. No external requests, strict CSP.
+
+1. **Saved data.** Keep the last good responses of incidents, shelters, events and stats in IndexedDB (as the Android export does) and show them with "Saved data from <time>, not live" when the server cannot be reached. Never save auth or private responses. Clear everything on logout.
+2. **Offline map.** After the first online visit download `tricity.pmtiles` once, with progress, into the Cache API (check `navigator.storage.estimate`, handle quota errors, ask for persistent storage), and read it through a custom one-file PMTiles source. Make sure `/map-assets` glyphs and sprites are in the offline cache. Show "Map saved" in the map UI.
+3. **Road graph.** Cache `/routing/tricity-roads.rnrg` the same way so navigation works offline.
+4. **Service worker.** Precache every route's HTML and the JS and CSS chunks it needs, version the cache and delete old caches on update, cache static assets cache-first, and leave `/api/*` to the app's saved-data logic.
+5. **"Offline ready" indicator.** "Preparing offline use…" while pages, data, map and graph are saved, then "Offline ready ✓ (saved <time>)". It must be reliable: it is computed from what is really on the device.
+6. **Verify** in headless Chrome on a production build with the service worker active: visit online, wait for "Offline ready", go offline (CDP network emulation), reload Home, Map, Shelters, Events, an incident page, Report, Resources and About; navigate to a shelter and an incident offline; queue a report and an SOS offline and see each sent exactly once when back online; login state unchanged; a fresh profile that never visited online shows normal error states. Run lint, build, all check scripts and `npm run build:mobile`.
+7. **Deploy** with `npx vercel deploy --prod --skip-domain --regions bom1` so the live site stays unchanged. Report the unique URL and whether it is behind Vercel login. Do NOT promote it. If it cannot be made reliable, say so and leave it undeployed.
+
