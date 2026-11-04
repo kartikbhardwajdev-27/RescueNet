@@ -6,7 +6,6 @@ import usePolledResource from "@/components/usePolledResource";
 import useUserLocation from "@/components/useUserLocation";
 import ActivityCard from "./ActivityCard";
 import Hero from "./Hero";
-import MiniMap from "./MiniMap";
 import NearbyCard from "./NearbyCard";
 import QuickActions from "./QuickActions";
 import StatsRow from "./StatsRow";
@@ -32,9 +31,11 @@ export default function HomeDashboard() {
         <Hero className="@3xl:order-2 @3xl:col-span-7" />
         <StatsRow resource={stats} className="@3xl:order-4 @3xl:col-span-12" />
         <QuickActions className="@3xl:order-3 @3xl:col-span-5" />
-        <NearbyCard shelters={shelters} incidents={incidents} place={place} className="@3xl:order-6 @3xl:col-span-6" />
-        <ActivityCard incidents={incidents} className="@3xl:order-7 @3xl:col-span-6" />
-        <MiniMap incidents={incidents} shelters={shelters} className="@3xl:order-5 @3xl:col-span-6 @3xl:row-span-2" />
+        {/* Nearby and Recent activity: stacked on phones (Nearby first), side by side from 1024px. */}
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 @3xl:order-5 @3xl:col-span-12">
+          <NearbyCard shelters={shelters} incidents={incidents} place={place} />
+          <ActivityCard incidents={incidents} />
+        </div>
         {staleData && (
           <p role="status" className="text-xs font-medium text-warn @3xl:order-8 @3xl:col-span-12">
             {"Couldn't refresh just now. Showing the last data we have."}

@@ -63,22 +63,3 @@ export function buildActivityItems(incidents = [], { typeLabel, limit = 4 }) {
 export function capitalize(word = "") {
   return word.charAt(0).toUpperCase() + word.slice(1);
 }
-
-// Scales { lng, lat } points to x / y percentages of their own bounding box (y
-// grows downward), with a margin so edge points aren't clipped. A tiny or empty
-// spread is widened to `minSpan` degrees so one point sits in the middle
-// instead of being zoomed to nothing.
-export function plotPoints(points, { margin = 0.1, minSpan = 0.02 } = {}) {
-  if (points.length === 0) return [];
-  const lngs = points.map((p) => p.lng);
-  const lats = points.map((p) => p.lat);
-  const midLng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
-  const midLat = (Math.min(...lats) + Math.max(...lats)) / 2;
-  const width = Math.max(Math.max(...lngs) - Math.min(...lngs), minSpan) * (1 + margin * 2);
-  const height = Math.max(Math.max(...lats) - Math.min(...lats), minSpan) * (1 + margin * 2);
-  return points.map((p) => ({
-    ...p,
-    x: ((p.lng - (midLng - width / 2)) / width) * 100,
-    y: (1 - (p.lat - (midLat - height / 2)) / height) * 100,
-  }));
-}

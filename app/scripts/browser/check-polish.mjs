@@ -88,6 +88,30 @@ async function reportRows(label, rowSel) {
 }
 
 const parts = {
+  async B() {
+    const cards = `(() => { const h = (t) => [...document.querySelectorAll('h2')].find((e) => e.textContent.trim() === t)?.closest('section, article, div[class*=rounded]'); const n = h('Nearby'), a = h('Recent activity'); if (!n || !a) return null; const r = (e) => e.getBoundingClientRect(); return { n: r(n).toJSON(), a: r(a).toJSON(), vw: innerWidth, overflowX: document.documentElement.scrollWidth > innerWidth + 1, mini: /Live disaster status/i.test(document.body.innerText) }; })()`;
+    for (const [w, h, mobile] of [...SIZES.map(([a, b]) => [a, b, true]), [1024, 768, false], [1280, 800, false], [1440, 900, false]]) {
+      tag = `B ${w}x${h}`;
+      await resize(w, h, mobile);
+      await page.goto(`${base}/`, { waitMs: 2500 });
+      const c = await page.eval(cards);
+      ok("Nearby and Recent activity cards found", !!c);
+      if (!c) continue;
+      ok("no Live disaster status card", !c.mini);
+      ok("no horizontal page scroll", !c.overflowX);
+      if (w >= 1024) {
+        ok("side by side (same top)", Math.abs(c.n.top - c.a.top) < 2, `tops ${Math.round(c.n.top)} / ${Math.round(c.a.top)}`);
+        ok("equal widths", Math.abs(c.n.width - c.a.width) < 2, `${Math.round(c.n.width)} / ${Math.round(c.a.width)}`);
+        ok("no gap between columns beyond 24px", c.a.left - c.n.right <= 24 && c.a.left >= c.n.right, `${Math.round(c.a.left - c.n.right)}px`);
+        ok("Nearby on the left", c.n.left < c.a.left);
+        ok("same height (no empty gap under the shorter card)", Math.abs(c.n.height - c.a.height) < 2, `${Math.round(c.n.height)} / ${Math.round(c.a.height)}`);
+      } else {
+        ok("stacked, Nearby first", c.a.top >= c.n.bottom - 1 && Math.abs(c.n.left - c.a.left) < 2);
+      }
+      await page.eval(`document.querySelector('h2')&&[...document.querySelectorAll('h2')].find((e)=>e.textContent.trim()==='Nearby').scrollIntoView({block:'start'})`);
+      await page.screenshot(path.join(SHOTS, `B-home-${w}.png`));
+    }
+  },
   async A() {
     for (const [w, h] of SIZES) {
       tag = `A ${w}x${h}`;
