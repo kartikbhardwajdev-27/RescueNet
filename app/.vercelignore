@@ -1,0 +1,16 @@
+# Local-only or large folders, not needed for the Vercel build
+node_modules
+.next
+out
+dist
+android
+coverage
+build
+*.apk
+*.aab
+*.keystore
+*.jks
+*.log
+.DS_Store
+.env*
+scripts/browser
