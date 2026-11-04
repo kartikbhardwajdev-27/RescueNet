@@ -20,7 +20,7 @@ const only = flag("--part");
 const SHOTS = path.resolve(flag("--shots") ?? path.join(os.tmpdir(), "rescuenet-polish-shots"));
 fs.mkdirSync(SHOTS, { recursive: true });
 const PROFILE = fs.mkdtempSync(path.join(os.tmpdir(), "rescuenet-chrome-"));
-const SIZES = [[360, 740], [390, 844], [412, 915]];
+const SIZES = (flag('--size') ? [flag('--size').split('x').map(Number)] : [[360, 740], [390, 844], [412, 915]]);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const results = [];
 let tag = "";
@@ -33,6 +33,7 @@ const chrome = await launch({ port: 9344, profile: PROFILE });
 const page = await (await chrome.newPage()).ready();
 
 async function resize(w, h, mobile = true) {
+  await page.send("Emulation.setFocusEmulationEnabled", { enabled: true });
   await page.send("Emulation.setDeviceMetricsOverride", { width: w, height: h, deviceScaleFactor: 2, mobile });
   await page.send("Emulation.setTouchEmulationEnabled", { enabled: mobile });
 }
@@ -88,6 +89,77 @@ async function reportRows(label, rowSel) {
 }
 
 const parts = {
+  async C() {
+    const count = `document.querySelectorAll('[data-toast]').length`;
+    const clickRsvp = `(() => { const b = [...document.querySelectorAll('[data-event-id] button')].find((x) => /(Join|Leave)/.test(x.textContent.trim()) && !x.disabled); if (!b) return null; b.click(); return b.textContent.trim(); })()`;
+    const toastCenter = `(() => { const t = document.querySelector('[data-toast]'); if (!t) return null; const r = t.getBoundingClientRect(); return { x: r.left + 40, y: r.top + r.height / 2 }; })()`;
+    const waitGone = async (limitMs) => { const t0 = Date.now(); while (Date.now() - t0 < limitMs) { if ((await page.eval(count)) === 0) return Date.now() - t0; await sleep(100); } return null; };
+    const fresh = async () => { await page.goto(`${base}/events`, { waitMs: 2500 }); };
+    await login("demo.citizen@rescuenet.test");
+    for (const [w, h] of SIZES) {
+      tag = `C ${w}x${h}`;
+      await resize(w, h);
+      await page.send("Emulation.setEmulatedMedia", { features: [] });
+      await page.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 1, y: 1 });
+      // 1. success toast: stays at ~3 s, gone by ~4.6 s, appears in a polite live region with a close button
+      await fresh();
+      ok("RSVP click found", !!(await page.eval(clickRsvp)));
+      await page.waitFor(`${count} >= 1`, 5000);
+      ok("live region is role=status aria-live=polite", await page.eval(`(() => { const r = document.querySelector('[data-toast]')?.parentElement; return r?.getAttribute('role') === 'status' && r?.getAttribute('aria-live') === 'polite'; })()`));
+      ok("close button present, >= 44px", await page.eval(`(() => { const b = document.querySelector('[data-toast] button[aria-label="Dismiss notification"]'); const r = b?.getBoundingClientRect(); return !!r && r.width >= 43.5 && r.height >= 43.5; })()`));
+      await page.screenshot(path.join(SHOTS, `C-toast-${w}.png`));
+      await sleep(3000);
+      ok("success toast still there at 3 s", (await page.eval(count)) === 1);
+      const gone = await waitGone(2500);
+      ok("success toast gone by ~4 s", gone !== null && gone < 2000, gone === null ? "never" : `+${gone}ms after 3 s`);
+      // 2. hover pauses
+      await fresh();
+      await page.eval(clickRsvp);
+      await page.waitFor(`${count} >= 1`, 5000);
+      const c = await page.eval(toastCenter);
+      await page.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: c.x, y: c.y });
+      await sleep(5500);
+      ok("hovered toast is still there after 5.5 s", (await page.eval(count)) === 1);
+      await page.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 5, y: 5 });
+      const gone2 = await waitGone(5000);
+      ok("toast goes after the pointer leaves", gone2 !== null, gone2 === null ? "never" : `${gone2}ms`);
+      // 3. focus pauses, and the close button removes it at once
+      await fresh();
+      await page.eval(clickRsvp);
+      await page.waitFor(`${count} >= 1`, 5000);
+      await page.eval(`document.querySelector('[data-toast] button').focus()`);
+      await sleep(5000);
+      ok("focused toast is still there after 5 s", (await page.eval(count)) === 1);
+      await page.eval(`document.querySelector('[data-toast] button').click()`);
+      await sleep(150);
+      ok("close button removes it at once", (await page.eval(count)) === 0);
+      // 4. at most 3 at a time
+      await fresh();
+      for (let i = 0; i < 6; i += 1) { await page.eval(clickRsvp); await sleep(700); }
+      const many = await page.eval(count);
+      ok("at most 3 toasts at a time", many >= 2 && many <= 3, `${many} shown after 6 clicks`);
+      await page.screenshot(path.join(SHOTS, `C-stack-${w}.png`));
+      // clean up: leave the event if we joined it
+      await sleep(4500);
+      // 5. error toast: 7 s. A page-load hook records when the toast appears and disappears,
+      //    because the map page's own load event can take longer than the toast lives.
+      await page.send("Emulation.setFocusEmulationEnabled", { enabled: false });
+      const hook = await page.send("Page.addScriptToEvaluateOnNewDocument", { source: `(() => { window.__t = {}; const seen = () => document.querySelector('[data-toast-kind="error"]'); new MutationObserver(() => { const on = !!seen(); if (on && !window.__t.added) window.__t.added = performance.now(); if (!on && window.__t.added && !window.__t.removed) window.__t.removed = performance.now(); }).observe(document, { childList: true, subtree: true }); })()` });
+      await page.goto(`${base}/map?focus=incident:000000000000000000000000`, { waitMs: 500 });
+      await page.waitFor(`window.__t && window.__t.removed`, 30000);
+      const t = await page.eval(`window.__t`);
+      const shown = t.removed - t.added;
+      ok("error toast lasts about 7 s", shown > 6700 && shown < 7800, `${Math.round(shown)} ms`);
+      await page.send("Page.removeScriptToEvaluateOnNewDocument", { identifier: hook.identifier });
+      // 6. reduced motion
+      await page.send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-reduced-motion", value: "reduce" }] });
+      await fresh();
+      await page.eval(clickRsvp);
+      await page.waitFor(`${count} >= 1`, 5000);
+      ok("no animation under prefers-reduced-motion", (await page.eval(`getComputedStyle(document.querySelector('[data-toast]')).animationName`)) === "none");
+    }
+    // leave the demo data as we found it: put the demo scene back (join/leave toggled it)
+  },
   async B() {
     const cards = `(() => { const h = (t) => [...document.querySelectorAll('h2')].find((e) => e.textContent.trim() === t)?.closest('section, article, div[class*=rounded]'); const n = h('Nearby'), a = h('Recent activity'); if (!n || !a) return null; const r = (e) => e.getBoundingClientRect(); return { n: r(n).toJSON(), a: r(a).toJSON(), vw: innerWidth, overflowX: document.documentElement.scrollWidth > innerWidth + 1, mini: /Live disaster status/i.test(document.body.innerText) }; })()`;
     for (const [w, h, mobile] of [...SIZES.map(([a, b]) => [a, b, true]), [1024, 768, false], [1280, 800, false], [1440, 900, false]]) {

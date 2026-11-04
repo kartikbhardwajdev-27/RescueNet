@@ -7,7 +7,7 @@ import { onOutboxEvent, submitToOutbox } from "@/lib/outbox";
 import { isPending } from "@/lib/outboxRules";
 import { useAuth } from "./AuthProvider";
 import SosModal from "./SosModal";
-import Toast from "./Toast";
+import Toast, { MAX_TOASTS } from "./Toast";
 import useOutbox from "./useOutbox";
 
 const SosContext = createContext(null);
@@ -25,7 +25,7 @@ export function useSos() {
 // Shows a message in the shared toast:
 //   const showToast = useToast();
 //   showToast("Saved");
-//   showToast("Something failed", { kind: "error", duration: 7000 });
+//   showToast("Something failed", { kind: "error" });   // errors stay 7 s, everything else 4 s
 export function useToast() {
   return useSosContext().showToast;
 }
@@ -49,7 +49,8 @@ export default function SosProvider({ children }) {
   const [phase, setPhaseState] = useState("idle");
   const [sosError, setSosError] = useState("");
   const [sosNote, setSosNote] = useState("");
-  const [toast, setToast] = useState(null);
+  const [toasts, setToasts] = useState([]);
+  const toastIdRef = useRef(0);
   const outbox = useOutbox();
   // An SOS that is saved but not yet delivered. Only one at a time: pressing SOS
   // again would only queue a second alert for the same emergency.
@@ -65,10 +66,13 @@ export default function SosProvider({ children }) {
     setPhaseState(next);
   }, []);
 
-  const dismissToast = useCallback(() => setToast(null), []);
+  const dismissToast = useCallback((id) => setToasts((list) => list.filter((t) => t.id !== id)), []);
 
-  const showToast = useCallback((message, { kind = "success", duration } = {}) => {
-    setToast({ id: Date.now(), message, kind, duration });
+  // How long a toast stays is fixed by its kind (see Toast.js), so a `duration` option is ignored.
+  const showToast = useCallback((message, { kind = "success" } = {}) => {
+    toastIdRef.current += 1;
+    const id = toastIdRef.current;
+    setToasts((list) => [...list, { id, message, kind }].slice(-MAX_TOASTS));
   }, []);
 
   const openSos = useCallback(() => {
@@ -213,7 +217,7 @@ export default function SosProvider({ children }) {
         onClose={closeSos}
         onConfirm={confirmSos}
       />
-      <Toast toast={toast} onDismiss={dismissToast} />
+      <Toast toasts={toasts} onDismiss={dismissToast} />
     </SosContext>
   );
 }
