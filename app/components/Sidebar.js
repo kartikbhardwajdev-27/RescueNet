@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Siren } from "lucide-react";
 import SidebarAccount from "./auth/SidebarAccount";
 import Logo from "./Logo";
+import OfflineReady from "./OfflineReady";
 import { NAV_ITEMS, isActive } from "./navItems";
 import { useSos } from "./SosProvider";
 
@@ -41,6 +42,7 @@ export default function Sidebar() {
       </nav>
 
       <div className="mt-auto flex flex-col gap-3 pt-6">
+        <OfflineReady />
         <SidebarAccount />
         <button
           type="button"

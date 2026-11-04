@@ -1,6 +1,7 @@
 "use client";
 
 import { Info, Send, ServerOff, WifiOff } from "lucide-react";
+import OfflineReady from "./OfflineReady";
 import useOutbox from "./useOutbox";
 import { isPending } from "@/lib/outboxRules";
 
@@ -59,19 +60,21 @@ export default function ConnectivityBanner() {
   const outbox = useOutbox();
   const waiting = outbox.items.filter(isPending).length;
   const shown = describe(outbox, waiting);
-  if (!shown) return null;
 
-  const { Icon, text, short, tone } = shown;
+  const { Icon, text, short, tone } = shown ?? {};
   return (
-    <div className="pointer-events-none fixed inset-x-3 top-[4.5rem] z-50 flex justify-center md:inset-x-auto md:top-3 md:right-6 md:justify-end">
-      <p
-        role="status"
-        className={`pointer-events-auto flex max-w-xl items-start gap-2.5 rounded-2xl border bg-surface-raised/90 px-3.5 py-2 text-sm font-semibold text-ink shadow-card-hover backdrop-blur-xl max-md:items-center ${TONES[tone].box}`}
-      >
-        <Icon className={`mt-0.5 size-4 shrink-0 ${TONES[tone].icon}`} aria-hidden="true" />
-        <span className="md:hidden">{short}</span>
-        <span className="hidden md:inline">{text}</span>
-      </p>
+    <div className="pointer-events-none fixed inset-x-3 top-[4.5rem] z-50 flex flex-col items-center gap-2 md:inset-x-auto md:top-3 md:right-6 md:items-end">
+      <OfflineReady hideAfterMs={10_000} className="pointer-events-none max-w-xl bg-surface-raised/90 shadow-card-hover backdrop-blur-xl md:hidden [&_button]:pointer-events-auto" />
+      {shown && (
+        <p
+          role="status"
+          className={`pointer-events-auto flex max-w-xl items-start gap-2.5 rounded-2xl border bg-surface-raised/90 px-3.5 py-2 text-sm font-semibold text-ink shadow-card-hover backdrop-blur-xl max-md:items-center ${TONES[tone].box}`}
+        >
+          <Icon className={`mt-0.5 size-4 shrink-0 ${TONES[tone].icon}`} aria-hidden="true" />
+          <span className="md:hidden">{short}</span>
+          <span className="hidden md:inline">{text}</span>
+        </p>
+      )}
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { CircleAlert, History, HousePlus, Info, LoaderCircle, LocateFixed, MapPi
 import { ErrorState } from "@/components/home/states";
 import { formatSavedTime } from "@/components/SavedDataBanner";
 import { toneClasses } from "@/components/home/tones";
+import MapSavedNotice from "./MapSavedNotice";
 import { LEGEND_ITEMS } from "./mapMeta";
 
 // The glass panels laid over the map. They are siblings of the map element, so
@@ -189,6 +190,7 @@ export function TopNotices({ loading, problem, baseMapMissing, outsideCoverage, 
           Saved data from {formatSavedTime(savedAt)}, not live
         </Notice>
       )}
+      {hero === null && <MapSavedNotice />}
       {outsideCoverage && (
         <Notice icon={MapPinOff} tone="info">
           The offline map covers Chandigarh, Mohali and Panchkula only.
