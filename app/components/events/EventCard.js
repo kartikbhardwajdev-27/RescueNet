@@ -12,7 +12,7 @@ import { formatEventWhen } from "./eventTime";
 
 const badge = (tone) => `rounded-full px-2.5 py-1 text-xs font-bold ${toneClasses(tone).badge}`;
 const buttonBase =
-  "flex items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-bold transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-60 motion-safe:active:scale-95";
+  "flex min-h-11 items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-bold transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-60 motion-safe:active:scale-95";
 const primary = `${buttonBase} bg-brand-gradient text-on-brand shadow-brand hover:brightness-110`;
 const secondary = `${buttonBase} border border-line-strong bg-white/5 hover:bg-white/10`;
 
@@ -82,7 +82,7 @@ export default function EventCard({ event, now, distanceKm, loggedIn, busy, onJo
         </div>
       </div>
 
-      <p className="line-clamp-3 text-sm break-words whitespace-pre-wrap text-ink-muted">{event.description}</p>
+      <p className="line-clamp-2 text-sm break-words whitespace-pre-wrap text-ink-muted">{event.description}</p>
 
       <dl className="flex flex-col gap-2 text-sm">
         <div className="flex items-start gap-2.5">

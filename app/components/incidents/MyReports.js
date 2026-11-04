@@ -46,7 +46,7 @@ export default function MyReports() {
             {list.slice(0, MAX_SHOWN).map((incident) => {
               const { label, icon: Icon, isSos } = incidentKindMeta(incident);
               return (
-                <li key={incident._id} className="flex items-center gap-2">
+                <li key={incident._id} className="flex flex-col">
                   <Link
                     href={incidentHref(incident._id)}
                     className="group -mx-2 flex min-w-0 flex-1 items-center gap-3 rounded-2xl px-2 py-3 transition-colors hover:bg-white/5"
@@ -79,7 +79,9 @@ export default function MyReports() {
                       aria-hidden="true"
                     />
                   </Link>
-                  <NavigateHereLink compact incidentId={incident._id} label={label} />
+                  <div className="pb-2">
+                    <NavigateHereLink compact incidentId={incident._id} label={label} />
+                  </div>
                 </li>
               );
             })}

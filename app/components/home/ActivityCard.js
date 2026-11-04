@@ -48,14 +48,14 @@ export default function ActivityCard({ incidents, className = "" }) {
                     {item.isSos && <SosBadge />}
                     {item.title}
                   </p>
-                  <p className="text-xs text-ink-muted">{item.detail}</p>
+                  <p data-clamp className="line-clamp-2 text-xs break-words text-ink-muted">{item.detail}</p>
                   <p className="mt-0.5 text-xs font-medium text-ink-muted">
                     <time dateTime={item.time} title={new Date(item.time).toLocaleString()}>
                       {formatRelativeTime(item.time, now)}
                     </time>
                   </p>
                 </Link>
-                <div className="mt-1.5">
+                <div className="mt-2">
                   <NavigateHereLink compact incidentId={item.id} label={item.title} />
                 </div>
               </li>

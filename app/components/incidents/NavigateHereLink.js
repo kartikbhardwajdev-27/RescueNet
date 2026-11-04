@@ -6,7 +6,7 @@ import { navigateIncidentHref } from "@/lib/mapFocus";
 // road (the map asks for confirmation first when the incident is active and high or critical).
 //   compact   a small button for list rows; otherwise the large one used on the incident page
 export default function NavigateHereLink({ incidentId, label = "incident", compact = false }) {
-  const size = compact ? "px-3 py-1.5 text-xs" : "px-4 py-2.5 text-sm";
+  const size = compact ? "min-h-11 px-3.5 py-1.5 text-xs" : "px-4 py-2.5 text-sm";
   return (
     <Link
       href={navigateIncidentHref(incidentId)}

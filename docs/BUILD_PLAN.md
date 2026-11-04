@@ -1,6 +1,6 @@
 # RescueNet build plan
 
-Instructions for the `rescuenet-builder` agent. Follow this file exactly. Steps 1 to 28 are built. Do steps 29 and 30 in order, one at a time (hosted-deploy readiness, then the hosted test checklist).
+Instructions for the `rescuenet-builder` agent. Follow this file exactly. Steps 1 to 30 are built. Do step 31 (pre-demo polish), one part at a time.
 
 ## How to work
 
@@ -11,7 +11,7 @@ Instructions for the `rescuenet-builder` agent. Follow this file exactly. Steps 
 5. Continue to the next step automatically only if the current step fully passed its verification. If a step fails twice, stop and report. Do not guess.
 6. When something is not specified, pick the simplest option and mention it in your report.
 7. After each step, report briefly: what you built, files changed, what you verified and how, what you could NOT verify, and anything Kartik must do by hand.
-8. After step 30, stop. Do not invent extra steps.
+8. After step 31, stop. Do not invent extra steps.
 
 ## Standing rules
 
@@ -272,3 +272,19 @@ Verify: lint, build, the new limiter against a scratch database, and laptop mode
 ## Step 30: Hosted test checklist
 
 Add a hosted section to `docs/TEST_CHECKLIST.md`: install the web app over https on a phone, location, the APK pointed at the hosted URL, an airplane-mode queue test, and the rate limit across two requests. Commit and push, staging by explicit path. Report what could NOT be verified. After Step 30, stop.
+
+---
+
+## Step 31: Pre-demo polish
+
+Four small UI fixes. Change nothing outside what is listed, and do not touch APIs, data or auth. One commit per part (A, B, C, D), staged by explicit path, pushed after each. Do not deploy.
+
+**A. Phone layout bug.** In Home "Nearby" and "Recent activity" on phones, the text is squeezed into a one-word-wide column and "Navigate here" overlaps it. Each row is the icon plus text on the first line (text takes the remaining width, wraps normally, `min-w-0`), with the action buttons on their own row below. No overlap, tap targets at least 44px. Clamp long descriptions to 2 lines in lists (full text stays on the detail page). Check My reports, Events, Shelters cards and the account queue list for the same pattern and fix any that break.
+
+**B. Home layout.** Remove the "Live disaster status" mini-map card from Home and delete the code no longer used. Put "Recent activity" next to "Nearby" in a two-column grid (equal widths, from 1024px up, no empty gap). On phones stack them, Nearby first. Keep stats, hero and quick actions.
+
+**C. Notifications.** Toasts disappear on their own: success and info after 4 s, errors after 7 s. Add a close (x) button. Pause the timer on hover or focus. At most 3 at a time. Keep aria-live and respect reduced motion. Status banners such as "Offline" stay while the condition holds; messages inside the SOS modal stay until the user closes it.
+
+**D. Pick the location on a map (Report page).** Next to the coordinates add a "Pick on map" button that opens a map (modal or sheet on phones) using the existing offline MapLibre and local PMTiles. Tap or click places a draggable marker; show the coordinates and a "Use this location" button. Start centred on the user's location, or on 30.65, 76.80 at zoom 12. Keep "Use my location" and the manual fields, all three in sync both ways. If the point is outside the offline map area, show a short note but still allow it. Load lazily (`next/dynamic`, `ssr: false`). Submit and offline-queue behaviour must not change. No external requests. If this cannot be made reliable, say so and leave it out.
+
+Verify each part in headless Chrome at 360x740, 390x844 and 412x915: A and B with `getBoundingClientRect` (no overlaps, no clipping, text column at least 50% of the row), C with timers, D (click sets coordinates, drag updates them, typing moves the marker, submit sends the picked point). Run lint, build, the existing check scripts (including `check:mobile`) and `npm run build:mobile`. Report what could NOT be verified. After Step 31, stop.

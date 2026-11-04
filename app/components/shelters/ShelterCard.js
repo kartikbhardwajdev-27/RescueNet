@@ -36,7 +36,7 @@ export default function ShelterCard({ shelter, distanceKm, direction = null, war
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="font-display text-lg leading-snug font-bold">{name}</h3>
-          <p className="mt-1 text-sm text-ink-muted">{address}</p>
+          <p className="mt-1 line-clamp-2 text-sm break-words text-ink-muted">{address}</p>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1.5">
           <span className={`rounded-full px-3 py-1 text-xs font-bold ${toneClasses(meta.tone).badge}`}>{meta.label}</span>
@@ -72,14 +72,14 @@ export default function ShelterCard({ shelter, distanceKm, direction = null, war
       <div className="mt-auto flex flex-wrap items-center gap-2 pt-1">
         <Link
           href={navigateHref(shelter._id)}
-          className="flex items-center gap-2 rounded-xl bg-brand-gradient px-3.5 py-2 text-sm font-bold text-on-brand shadow-brand transition-all duration-150 hover:brightness-110 motion-safe:active:scale-95"
+          className="flex min-h-11 items-center gap-2 rounded-xl bg-brand-gradient px-3.5 py-2 text-sm font-bold text-on-brand shadow-brand transition-all duration-150 hover:brightness-110 motion-safe:active:scale-95"
         >
           <Navigation className="size-4" aria-hidden="true" />
           Navigate
         </Link>
         <Link
           href={mapHref("shelter", shelter._id)}
-          className="flex items-center gap-2 rounded-xl border border-line-strong bg-white/5 px-3.5 py-2 text-sm font-semibold transition-all duration-150 hover:bg-white/10 motion-safe:active:scale-95"
+          className="flex min-h-11 items-center gap-2 rounded-xl border border-line-strong bg-white/5 px-3.5 py-2 text-sm font-semibold transition-all duration-150 hover:bg-white/10 motion-safe:active:scale-95"
         >
           <MapIcon className="size-4" aria-hidden="true" />
           View on map
@@ -88,7 +88,7 @@ export default function ShelterCard({ shelter, distanceKm, direction = null, war
           <button
             type="button"
             onClick={() => onEdit(shelter)}
-            className="flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-semibold text-brand-to transition-colors hover:bg-white/10"
+            className="flex min-h-11 items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-semibold text-brand-to transition-colors hover:bg-white/10"
           >
             <Pencil className="size-4" aria-hidden="true" />
             Edit

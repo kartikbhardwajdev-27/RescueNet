@@ -20,7 +20,7 @@ function describe(item) {
 }
 
 const buttonClass =
-  "flex items-center gap-1.5 rounded-xl border border-line-strong bg-white/5 px-3 py-1.5 text-xs font-bold transition-all duration-150 hover:bg-white/10 motion-safe:active:scale-95";
+  "flex min-h-11 items-center gap-1.5 rounded-xl border border-line-strong bg-white/5 px-3 py-1.5 text-xs font-bold transition-all duration-150 hover:bg-white/10 motion-safe:active:scale-95";
 
 function Row({ item, now }) {
   const { title, detail, Icon, isSos } = describe(item);

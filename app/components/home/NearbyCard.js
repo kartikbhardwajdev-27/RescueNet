@@ -89,23 +89,27 @@ export default function NearbyCard({ shelters, incidents, place, className = "" 
             {items.map((item) => {
               const view = describe(item, now);
               return (
-                <li key={`${item.kind}-${item.id}`} data-kind={item.kind} data-id={item.id} className="flex items-center gap-3 rounded-2xl border border-line bg-white/5 p-3">
-                  <span className={`flex size-11 shrink-0 items-center justify-center rounded-xl ${toneClasses(view.tone).badge}`}>{view.icon}</span>
-                  <div className="min-w-0 flex-1">
-                    <p className="flex flex-wrap items-center gap-2 text-sm font-semibold">
-                      {view.sos && <SosBadge />}
-                      {view.heading ?? view.title}
-                    </p>
-                    <p className="text-xs text-ink-muted">{view.detail}</p>
+                <li key={`${item.kind}-${item.id}`} data-kind={item.kind} data-id={item.id} className="flex flex-col gap-3 rounded-2xl border border-line bg-white/5 p-3">
+                  <div className="flex items-start gap-3">
+                    <span className={`flex size-11 shrink-0 items-center justify-center rounded-xl ${toneClasses(view.tone).badge}`}>{view.icon}</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="flex flex-wrap items-center gap-2 text-sm font-semibold break-words">
+                        {view.sos && <SosBadge />}
+                        {view.heading ?? view.title}
+                      </p>
+                      <p data-clamp className="line-clamp-2 text-xs break-words text-ink-muted">{view.detail}</p>
+                    </div>
                   </div>
-                  {item.kind === "incident" && <NavigateHereLink compact incidentId={item.id} label={view.title} />}
-                  <Link
-                    href={view.action.href}
-                    aria-label={`${view.action.label}: ${view.title}`}
-                    className="shrink-0 rounded-xl border border-line-strong bg-white/5 px-3 py-1.5 text-xs font-semibold transition-colors hover:bg-white/10 motion-safe:active:scale-95"
-                  >
-                    {view.action.label}
-                  </Link>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {item.kind === "incident" && <NavigateHereLink compact incidentId={item.id} label={view.title} />}
+                    <Link
+                      href={view.action.href}
+                      aria-label={`${view.action.label}: ${view.title}`}
+                      className="inline-flex min-h-11 shrink-0 items-center rounded-xl border border-line-strong bg-white/5 px-3.5 py-1.5 text-xs font-semibold transition-colors hover:bg-white/10 motion-safe:active:scale-95"
+                    >
+                      {view.action.label}
+                    </Link>
+                  </div>
                 </li>
               );
             })}
