@@ -215,30 +215,30 @@ const parts = {
       ok("RSVP click found", !!(await page.eval(clickRsvp)));
       await page.waitFor(`${count} >= 1`, 5000);
       ok("live region is role=status aria-live=polite", await page.eval(`(() => { const r = document.querySelector('[data-toast]')?.parentElement; return r?.getAttribute('role') === 'status' && r?.getAttribute('aria-live') === 'polite'; })()`));
-      ok("close button present, >= 44px", await page.eval(`(() => { const b = document.querySelector('[data-toast] button[aria-label="Dismiss notification"]'); const r = b?.getBoundingClientRect(); return !!r && r.width >= 43.5 && r.height >= 43.5; })()`));
+      ok("close button present, >= 44px", await page.eval(`(() => { const b = document.querySelector('[data-toast] button[aria-label="Dismiss"]'); const r = b?.getBoundingClientRect(); return !!r && r.width >= 43.5 && r.height >= 43.5; })()`));
       await page.screenshot(path.join(SHOTS, `C-toast-${w}.png`));
-      await sleep(3000);
-      ok("success toast still there at 3 s", (await page.eval(count)) === 1);
+      await sleep(9000);
+      ok("success toast still there at 9 s", (await page.eval(count)) === 1);
       const gone = await waitGone(2500);
-      ok("success toast gone by ~4 s", gone !== null && gone < 2000, gone === null ? "never" : `+${gone}ms after 3 s`);
+      ok("success toast gone by ~10 s", gone !== null && gone < 2000, gone === null ? "never" : `+${gone}ms after 9 s`);
       // 2. hover pauses
       await fresh();
       await page.eval(clickRsvp);
       await page.waitFor(`${count} >= 1`, 5000);
       const c = await page.eval(toastCenter);
       await page.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: c.x, y: c.y });
-      await sleep(5500);
-      ok("hovered toast is still there after 5.5 s", (await page.eval(count)) === 1);
+      await sleep(11500);
+      ok("hovered toast is still there after 11.5 s", (await page.eval(count)) === 1);
       await page.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 5, y: 5 });
-      const gone2 = await waitGone(5000);
+      const gone2 = await waitGone(12000);
       ok("toast goes after the pointer leaves", gone2 !== null, gone2 === null ? "never" : `${gone2}ms`);
       // 3. focus pauses, and the close button removes it at once
       await fresh();
       await page.eval(clickRsvp);
       await page.waitFor(`${count} >= 1`, 5000);
       await page.eval(`document.querySelector('[data-toast] button').focus()`);
-      await sleep(5000);
-      ok("focused toast is still there after 5 s", (await page.eval(count)) === 1);
+      await sleep(11000);
+      ok("focused toast is still there after 11 s", (await page.eval(count)) === 1);
       await page.eval(`document.querySelector('[data-toast] button').click()`);
       await sleep(150);
       ok("close button removes it at once", (await page.eval(count)) === 0);
@@ -249,8 +249,8 @@ const parts = {
       ok("at most 3 toasts at a time", many >= 2 && many <= 3, `${many} shown after 6 clicks`);
       await page.screenshot(path.join(SHOTS, `C-stack-${w}.png`));
       // clean up: leave the event if we joined it
-      await sleep(4500);
-      // 5. error toast: 7 s. A page-load hook records when the toast appears and disappears,
+      await sleep(10500);
+      // 5. error toast: 10 s. A page-load hook records when the toast appears and disappears,
       //    because the map page's own load event can take longer than the toast lives.
       await page.send("Emulation.setFocusEmulationEnabled", { enabled: false });
       const hook = await page.send("Page.addScriptToEvaluateOnNewDocument", { source: `(() => { window.__t = {}; const seen = () => document.querySelector('[data-toast-kind="error"]'); new MutationObserver(() => { const on = !!seen(); if (on && !window.__t.added) window.__t.added = performance.now(); if (!on && window.__t.added && !window.__t.removed) window.__t.removed = performance.now(); }).observe(document, { childList: true, subtree: true }); })()` });
@@ -258,7 +258,7 @@ const parts = {
       await page.waitFor(`window.__t && window.__t.removed`, 30000);
       const t = await page.eval(`window.__t`);
       const shown = t.removed - t.added;
-      ok("error toast lasts about 7 s", shown > 6700 && shown < 7800, `${Math.round(shown)} ms`);
+      ok("error toast lasts about 10 s", shown > 9700 && shown < 10900, `${Math.round(shown)} ms`);
       await page.send("Page.removeScriptToEvaluateOnNewDocument", { identifier: hook.identifier });
       // 6. reduced motion
       await page.send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-reduced-motion", value: "reduce" }] });

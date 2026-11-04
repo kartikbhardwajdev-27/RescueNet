@@ -186,22 +186,22 @@ try {
   await stopServer();
   ok("the server is really stopped", !(await health()));
   const checks = [
-    ["Home", "/", async (p) => { const t = await text(p); return { pass: /Saved data from/.test(t) && (await p.eval(`document.querySelectorAll('a[href^="/incidents/"]').length`)) > 0, d: "saved banner + incident links" }; }],
+    ["Home", "/", async (p) => { const t = await text(p); return { pass: (await exists(p, '[data-pill="saved-data"]')) && (await p.eval(`document.querySelectorAll('a[href^="/incidents/"]').length`)) > 0, d: "saved banner + incident links" }; }],
     ["Map", "/map", async (p) => {
       await p.waitFor(`document.querySelectorAll('.rn-marker').length >= 5`, 30000);
       await sleep(2500);
       const t = await text(p);
-      return { pass: /Saved data from/.test(t) && (await exists(p, ".maplibregl-canvas")) && /Map saved/.test(t), d: `${await p.eval(`document.querySelectorAll('.rn-marker').length`)} markers` };
+      return { pass: (await exists(p, '[data-pill="saved-data"]')) && (await exists(p, ".maplibregl-canvas")) && /Map saved/.test(t), d: `${await p.eval(`document.querySelectorAll('.rn-marker').length`)} markers` };
     }],
-    ["Shelters", "/shelters", async (p) => { const t = await text(p); return { pass: /Saved data from/.test(t) && /Navigate/.test(t), d: "banner + shelter cards" }; }],
-    ["Events", "/events", async (p) => { const t = await text(p); return { pass: /Saved data from/.test(t), d: "banner" }; }],
-    ["Incident (opened online)", `/incidents/${openedId}`, async (p) => { await p.waitFor(`document.body.innerText.includes('Reported')`, 15000); const t = await text(p); return { pass: /Saved data from/.test(t) && !/couldn't find that incident/i.test(t), d: "incident shown from saved data" }; }],
+    ["Shelters", "/shelters", async (p) => { const t = await text(p); return { pass: (await exists(p, '[data-pill="saved-data"]')) && /Navigate/.test(t), d: "banner + shelter cards" }; }],
+    ["Events", "/events", async (p) => { const t = await text(p); return { pass: (await exists(p, '[data-pill="saved-data"]')), d: "banner" }; }],
+    ["Incident (opened online)", `/incidents/${openedId}`, async (p) => { await p.waitFor(`document.body.innerText.includes('Reported')`, 15000); const t = await text(p); return { pass: (await exists(p, '[data-pill="saved-data"]')) && !/couldn't find that incident/i.test(t), d: "incident shown from saved data" }; }],
     ["Report", "/report", async (p) => ({ pass: await exists(p, "#report-description"), d: "form" })],
     ["Resources", "/resources", async (p) => ({ pass: /112/.test(await text(p)), d: "numbers" })],
     ["About", "/about", async (p) => ({ pass: /RescueNet/.test(await text(p)), d: "text" })],
   ];
   if (neverOpenedId) {
-    checks.splice(5, 0, ["Incident (never opened)", `/incidents/${neverOpenedId}`, async (p) => { await p.waitFor(`document.body.innerText.includes('Reported') || document.body.innerText.includes("couldn't find")`, 15000); const t = await text(p); return { pass: /Saved data from/.test(t) && !/couldn't find that incident/i.test(t), d: "shell + id from the address" }; }]);
+    checks.splice(5, 0, ["Incident (never opened)", `/incidents/${neverOpenedId}`, async (p) => { await p.waitFor(`document.body.innerText.includes('Reported') || document.body.innerText.includes("couldn't find")`, 15000); const t = await text(p); return { pass: (await exists(p, '[data-pill="saved-data"]')) && !/couldn't find that incident/i.test(t), d: "shell + id from the address" }; }]);
   }
   for (const [name, route, verify] of checks) {
     page.clearFailed();
@@ -332,7 +332,7 @@ try {
   for (const route of ["/", "/map", "/shelters", "/events", "/report", "/resources", "/about", "/incidents/" + openedId]) {
     await fresh.goto(`${BASE}${route}`, { waitMs: 2500 });
     const t = (await text(fresh)).replace(/\s+/g, " ");
-    const notSaved = !/Saved data from/.test(t);
+    const notSaved = !(await exists(fresh, '[data-pill="saved-data"]'));
     const main = (await fresh.eval(`document.querySelector('main')?.innerText ?? ''`)).replace(/\s+/g, " ");
     const hasError = /Couldn.t (reach|load)|couldn.t find that incident|Something went wrong/i.test(main) || ["/report", "/resources", "/about"].includes(route);
     ok(`fresh profile, API blocked: ${route} shows content or a normal error, not blank`, main.length > 60 && hasError && notSaved, main.slice(0, 90));

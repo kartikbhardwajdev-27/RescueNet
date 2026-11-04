@@ -41,3 +41,15 @@ If something cannot be saved (storage full, blocked) it says "Not ready for offl
 - Needs https (or localhost): service workers do not exist on `http://<LAN-IP>`.
 - iOS Safari clears site data of sites not used for about 7 days unless the site is added to the Home Screen.
 - Local script: `node scripts/browser/check-offline-web.mjs` (after `npm run build`) is the end-to-end check described in Step 32.
+
+## Pop-up notices
+
+Every pop-up notice (toasts, "You're offline…", "Saved data from <time>, not live", the map's notices, the route notices) is one component, `app/components/Popup.js`, with its state in `app/lib/popups.js`:
+
+- it goes away by itself after 10 s (the timer pauses while the pointer is over it or focus is inside it) and has a close button (44 px tap area, `aria-label="Dismiss"`) that removes it at once;
+- at most 3 show together; the others wait;
+- a dismissed notice stays dismissed while its condition is the same (its `signature`), however often the screen refetches; it returns for a new condition (offline again, a new error, newer saved data);
+- dismissing never hides the state: a small "Offline" pill and a "Saved data" pill stay at the top while the condition holds. Screens that show saved data report it through `SavedDataBanner` / `useReportSavedData`; the notice and pill are drawn once, in `ConnectivityBanner`;
+- messages inside the SOS modal are unchanged (they stay until the modal is closed); the modal now also has an x.
+
+Check: `node scripts/browser/check-popups.mjs http://localhost:<port>` (fake timers, 360x740 and 1440x900).
