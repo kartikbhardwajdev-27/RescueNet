@@ -1,6 +1,7 @@
-import { CircleAlert, History, HousePlus, Info, LoaderCircle, LocateFixed, MapPinOff, Navigation, RefreshCw, TriangleAlert } from "lucide-react";
+import { CircleAlert, HousePlus, Info, LoaderCircle, LocateFixed, MapPinOff, Navigation, RefreshCw, TriangleAlert } from "lucide-react";
 import { ErrorState } from "@/components/home/states";
-import { formatSavedTime } from "@/components/SavedDataBanner";
+import Popup from "@/components/Popup";
+import { useReportSavedData } from "@/components/SavedDataBanner";
 import { toneClasses } from "@/components/home/tones";
 import MapSavedNotice from "./MapSavedNotice";
 import { LEGEND_ITEMS } from "./mapMeta";
@@ -118,20 +119,29 @@ export function BottomControls({ filters, counts, onToggle, onLocate, locating, 
 }
 
 const NOTICE_TONES = {
-  info: "border-line-strong text-ink",
-  warn: "border-warn/40 text-ink",
+  info: "border-line-strong",
+  warn: "border-warn/40",
 };
 
-function Notice({ icon: Icon, tone = "info", children, action }) {
+// A pop-up notice on the map (components/Popup.js): 10 s, a close button, back only when its
+// `signature` changes. `id` names it. `progress` ones (loading) are not pop-ups: they are a status
+// that goes by itself when the work is done.
+function Notice({ id, signature, icon: Icon, tone = "info", children, action, progress = false }) {
+  const icon = <Icon className={`size-4 shrink-0 ${tone === "warn" ? "text-warn" : "text-brand-to"}`} aria-hidden="true" />;
+  if (progress) {
+    return (
+      <div role="status" className={`pointer-events-auto flex max-w-full items-center gap-2.5 rounded-2xl border bg-surface-raised/90 py-2 pr-3.5 pl-3.5 text-sm font-semibold shadow-card-hover backdrop-blur-xl ${NOTICE_TONES[tone]}`}>
+        {icon}
+        <span className="min-w-0 py-0.5">{children}</span>
+      </div>
+    );
+  }
   return (
-    <div
-      role="status"
-      className={`pointer-events-auto flex max-w-full items-center gap-2.5 rounded-2xl border bg-surface-raised/90 py-2 pr-2 pl-3.5 text-sm font-semibold shadow-card-hover backdrop-blur-xl ${NOTICE_TONES[tone]}`}
-    >
-      <Icon className={`size-4 shrink-0 ${tone === "warn" ? "text-warn" : "text-brand-to"}`} aria-hidden="true" />
+    <Popup id={`map-${id}`} signature={signature ?? ""} className={NOTICE_TONES[tone]}>
+      {icon}
       <span className="min-w-0 py-0.5">{children}</span>
-      {action ?? <span className="w-1.5" aria-hidden="true" />}
-    </div>
+      {action}
+    </Popup>
   );
 }
 
@@ -147,6 +157,8 @@ function Notice({ icon: Icon, tone = "info", children, action }) {
 // On a phone the notices are capped so that they can never reach the buttons at the bottom.
 export function TopNotices({ loading, problem, baseMapMissing, outsideCoverage, empty, savedAt = null, hero = null, children }) {
   const flush = hero !== null;
+  // The "Saved data from <time>, not live" pop-up and its pill are drawn by the stack at the top of the screen.
+  useReportSavedData(savedAt);
   return (
     <div
       className={`pointer-events-none absolute z-10 flex flex-col items-center ${
@@ -158,17 +170,19 @@ export function TopNotices({ loading, problem, baseMapMissing, outsideCoverage, 
       {hero}
       <div className={flush ? "rn-safe-x flex w-full flex-col items-center gap-2 pt-2" : "contents"}>
       {loading && (
-        <Notice icon={LoaderCircle} tone="info">
+        <Notice progress id="loading" icon={LoaderCircle} tone="info">
           <span className="motion-safe:animate-pulse">Loading incidents and shelters…</span>
         </Notice>
       )}
       {baseMapMissing && (
-        <Notice icon={CircleAlert} tone="warn">
+        <Notice id="base-map-missing" icon={CircleAlert} tone="warn">
           Offline map tiles are missing. Generate them with the command in docs/OFFLINE_MAP.md.
         </Notice>
       )}
       {problem && (
         <Notice
+          id="problem"
+          signature={problem.text}
           icon={CircleAlert}
           tone="warn"
           action={
@@ -185,19 +199,14 @@ export function TopNotices({ loading, problem, baseMapMissing, outsideCoverage, 
           {problem.text}
         </Notice>
       )}
-      {savedAt !== null && (
-        <Notice icon={History} tone="warn">
-          Saved data from {formatSavedTime(savedAt)}, not live
-        </Notice>
-      )}
       {hero === null && <MapSavedNotice />}
       {outsideCoverage && (
-        <Notice icon={MapPinOff} tone="info">
+        <Notice id="outside" icon={MapPinOff} tone="info">
           The offline map covers Chandigarh, Mohali and Panchkula only.
         </Notice>
       )}
       {empty && (
-        <Notice icon={Info} tone="info">
+        <Notice id="empty" icon={Info} tone="info">
           Nothing to show yet. Active incidents and shelters will appear here as they are added.
         </Notice>
       )}

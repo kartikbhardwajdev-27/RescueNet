@@ -1,14 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { CircleAlert, CircleCheck, Send, X } from "lucide-react";
+import { CircleAlert, CircleCheck, Send } from "lucide-react";
+import Popup from "./Popup";
 
 // `toasts` is a list of { id, message, kind }, oldest first (the provider keeps at most MAX_TOASTS).
-// Each one goes away on its own: 4 s for success and info, 7 s for errors. The timer pauses
-// while the pointer is over the toast or focus is inside it, and the close button removes it
-// at once. Errors are amber (warning): red is reserved for SOS / emergencies.
+// Each is a Popup (components/Popup.js): gone on its own after 10 s, the timer pauses on hover
+// or focus, the close button removes it at once, and no more than 3 pop-ups show together.
+// Errors are amber (warning): red is reserved for SOS / emergencies.
 export const MAX_TOASTS = 3;
-export const AUTO_DISMISS_MS = { success: 4000, sos: 4000, info: 4000, error: 7000 };
 
 const KINDS = {
   success: { Icon: CircleCheck, tone: "bg-info/20 text-info" },
@@ -18,46 +17,20 @@ const KINDS = {
 };
 
 function ToastItem({ toast, onDismiss }) {
-  const [hovered, setHovered] = useState(false);
-  const [focused, setFocused] = useState(false);
-  const remaining = useRef(AUTO_DISMISS_MS[toast.kind] ?? AUTO_DISMISS_MS.success);
-  const paused = hovered || focused;
-
-  useEffect(() => {
-    if (paused) return undefined;
-    const startedAt = Date.now();
-    const timer = setTimeout(() => onDismiss(toast.id), remaining.current);
-    return () => {
-      clearTimeout(timer);
-      remaining.current = Math.max(0, remaining.current - (Date.now() - startedAt));
-    };
-  }, [paused, toast.id, onDismiss]);
-
   const { Icon, tone } = KINDS[toast.kind] ?? KINDS.success;
-
   return (
-    <div
+    <Popup
+      id={`toast-${toast.id}`}
+      onClose={() => onDismiss(toast.id)}
       data-toast
       data-toast-kind={toast.kind}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      onFocus={() => setFocused(true)}
-      onBlur={() => setFocused(false)}
-      className="pointer-events-auto flex max-w-md items-center gap-3 rounded-2xl border border-line-strong bg-surface-raised/90 py-3 pr-2 pl-4 text-sm font-semibold text-ink shadow-card-hover backdrop-blur-xl motion-safe:animate-page-in"
+      className="max-w-md border-line-strong"
     >
       <span className={`flex size-8 shrink-0 items-center justify-center rounded-xl ${tone}`}>
         <Icon className="size-4" aria-hidden="true" />
       </span>
       <span className="min-w-0 flex-1 break-words">{toast.message}</span>
-      <button
-        type="button"
-        onClick={() => onDismiss(toast.id)}
-        aria-label="Dismiss notification"
-        className="-my-2 flex size-11 shrink-0 items-center justify-center rounded-xl text-ink-muted transition-colors hover:bg-white/10 hover:text-ink"
-      >
-        <X className="size-4" aria-hidden="true" />
-      </button>
-    </div>
+    </Popup>
   );
 }
 

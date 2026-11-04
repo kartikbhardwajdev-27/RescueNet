@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { CircleAlert, Clock, LoaderCircle, Siren } from "lucide-react";
+import { CircleAlert, Clock, LoaderCircle, Siren, X } from "lucide-react";
 import { withoutEmergencyHint } from "@/lib/api";
 
 // phase: "idle" | "locating" | "sending". Cancel stays available while locating
@@ -50,8 +50,17 @@ export default function SosModal({ open, phase = "idle", error = "", note = "", 
       }}
       className="m-auto w-[calc(100%-2rem)] max-w-md rounded-card border border-line-strong bg-surface/90 p-0 text-ink shadow-card-hover backdrop-blur-2xl backdrop:bg-black/60 backdrop:backdrop-blur-sm"
     >
-      <div className="p-6 sm:p-8">
-        <div className="flex items-start gap-4">
+      <div className="relative p-6 sm:p-8">
+        <button
+          type="button"
+          onClick={onClose}
+          disabled={phase === "sending"}
+          aria-label="Close"
+          className="absolute top-2 right-2 flex size-11 items-center justify-center rounded-xl text-ink-muted transition-colors hover:bg-white/10 hover:text-ink disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <X className="size-5" aria-hidden="true" />
+        </button>
+        <div className="flex items-start gap-4 pr-8">
           <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-sos/20 text-sos-soft">
             <Siren className="size-6" aria-hidden="true" />
           </div>

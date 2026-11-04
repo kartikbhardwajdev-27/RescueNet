@@ -1,8 +1,10 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { LoaderCircle, LocateOff, MapPinOff, TriangleAlert } from "lucide-react";
+import Popup from "@/components/Popup";
 import { formatDistance } from "@/lib/geo";
+import { resetPopup } from "@/lib/popups";
 import { stepStarts } from "@/lib/routing/navigation";
 import StepIcon from "./StepIcon";
 
@@ -33,6 +35,27 @@ const BANNER_TONE = {
   warn: "border-warn/60 text-ink",
 };
 
+// A route notice ("You are off the route", no position, warnings) as a pop-up: 10 s, a close
+// button, and once dismissed it comes back only for a new condition (it is forgotten when the
+// condition ends, for example after the reroute).
+function RouteNotice({ banner, onOpenDirections }) {
+  const BannerIcon = banner.icon;
+  const id = `route-${banner.id}`;
+  useEffect(() => () => resetPopup(id), [id]);
+  return (
+    <Popup id={id} compact data-banner={banner.id} className={`text-center text-xs leading-snug font-bold ${BANNER_TONE[banner.tone]}`}>
+      <BannerIcon className="size-4 shrink-0 text-warn" aria-hidden="true" />
+      {banner.opensDirections ? (
+        <button type="button" onClick={onOpenDirections} className="min-w-0 py-1 text-left font-bold">
+          {banner.text}
+        </button>
+      ) : (
+        <span className="min-w-0">{banner.text}</span>
+      )}
+    </Popup>
+  );
+}
+
 // The top of the map while a route is on screen: a compact card with the next instruction
 // (what to do, and how far away it is), flush with the top edge of the map so it takes as
 // little of the map as it can, and under it the one small status banner when there is one.
@@ -45,7 +68,6 @@ export default function NavigationTop({ nav, onOpenDirections }) {
   const step = steps[index];
   const away = following && progress ? Math.max(0, starts[index + 1] - progress.alongM) : step.distanceM;
   const banner = bannerFor({ following, rerouting, progress, followError, warnings });
-  const BannerIcon = banner?.icon;
 
   return (
     <>
@@ -73,28 +95,18 @@ export default function NavigationTop({ nav, onOpenDirections }) {
 
       {banner && (
         <div className="rn-safe-x pointer-events-none flex w-full justify-center pt-1.5 md:justify-start">
-          {banner.opensDirections ? (
-            <button
-              type="button"
-              onClick={onOpenDirections}
-              className={`pointer-events-auto flex max-w-full items-center gap-2 rounded-2xl border bg-surface-raised/95 px-3 py-1 text-center text-xs leading-snug font-bold shadow-card-hover backdrop-blur-xl ${BANNER_TONE[banner.tone]}`}
-            >
-              <BannerIcon className="size-4 shrink-0 text-warn" aria-hidden="true" />
-              <span className="min-w-0">{banner.text}</span>
-            </button>
-          ) : (
+          {banner.spinner ? (
+            // Working on it: not a notice, it goes by itself when the reroute is done.
             <p
               role="status"
               data-banner={banner.id}
               className={`flex max-w-full items-center gap-2 rounded-2xl border bg-surface-raised/95 px-3 py-1 text-center text-xs leading-snug font-bold shadow-card-hover backdrop-blur-xl ${BANNER_TONE[banner.tone]}`}
             >
-              {banner.spinner ? (
-                <LoaderCircle className="size-4 shrink-0 text-info motion-safe:animate-spin" aria-hidden="true" />
-              ) : (
-                <BannerIcon className="size-4 shrink-0 text-warn" aria-hidden="true" />
-              )}
+              <LoaderCircle className="size-4 shrink-0 text-info motion-safe:animate-spin" aria-hidden="true" />
               <span className="min-w-0">{banner.text}</span>
             </p>
+          ) : (
+            <RouteNotice banner={banner} onOpenDirections={onOpenDirections} />
           )}
         </div>
       )}

@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import { CircleCheck } from "lucide-react";
+import Popup from "@/components/Popup";
 import { getOfflineState, subscribeOfflineState } from "@/lib/offline/manager";
 
 // "Map saved": the map for this area is stored on the device, so it still draws
@@ -16,13 +17,9 @@ export default function MapSavedNotice() {
   );
   if (!saved) return null;
   return (
-    <div
-      role="status"
-      data-testid="map-saved"
-      className="pointer-events-auto flex max-w-full items-center gap-2 rounded-2xl border border-safe/40 bg-surface-raised/90 px-3 py-1.5 text-xs font-semibold shadow-card-hover backdrop-blur-xl"
-    >
+    <Popup id="map-saved" data-testid="map-saved" className="border-safe/40 text-xs">
       <CircleCheck className="size-4 shrink-0 text-safe" aria-hidden="true" />
       Map saved
-    </div>
+    </Popup>
   );
 }
